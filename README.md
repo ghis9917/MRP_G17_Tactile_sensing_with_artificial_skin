@@ -1,4 +1,4 @@
-# Tactile sensing with artificial skin - Simulation and deep learning
+# Tactile sensing with artificial skin
 ## Master Research Project 2 - Maastricht University, DKE - 2021
 
 **Description**: the DKE SwarmLab we are developing bio-inspired humanoid robots with artificial skins that could lead to a new generation of prosthetics. This project focusses on two aspects of tactile sensing with artificial skin –**(1)** a sophisticated simulation model that mimics the robot as closely as possible and **(2)** an AI that correctly interprets the input it receives from the tactile sensors integrated into the artificial skin.
