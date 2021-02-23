@@ -3,15 +3,13 @@ from scipy.spatial import Delaunay
 import numpy as np
 from itertools import combinations
  
+N_VERTICES = 15
+
 # make mesh
 faces = []
 edges = []
 vertices = [
-    [0, 0],
-    [0, 1],
-    [1, 0],
-    [1, 1],
-    [0.5, 0.75]
+    [np.random.uniform(0, 5), np.random.uniform(0, 5)] for _ in range(N_VERTICES)
 ]
 
 # Calculate Delaunay triangulation to get edges and faces of mesh
