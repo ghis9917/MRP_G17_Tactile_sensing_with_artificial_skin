@@ -1,0 +1,12 @@
+- Focus on nn architectures that could fit
+- How to accelerate the training, transfer learning, other datasetss...
+- Focus on the skin model, sensor placement (try different pattern/placement) and density, how get data ec.
+- Class we want to classify, not only danger/not, look at other research or dataset
+- Maching online and offline training
+- We don't have a good conclusion
+- Which limits does our approach have? Max range, damages
+- How many types of touches we want to classify? Type vs Location
+- Type and property the parts of the skin we want to model (clearly defined)
+- Variability and reliability of this approach (generalizable?)
+
+* next meeting by 2-3 weeks
