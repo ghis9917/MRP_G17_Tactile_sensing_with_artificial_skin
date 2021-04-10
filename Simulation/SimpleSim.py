@@ -1,8 +1,15 @@
 # %%
+from typing import List
+
 import numpy as np
+import scipy
+from scipy.ndimage import convolve
 from scipy.spatial import Delaunay
 from itertools import combinations
+
+import Utils
 from Shapes import Ellipse
+from Visualizer import Visualizer
 # import cv2
 
 
@@ -10,7 +17,6 @@ from Shapes import Ellipse
 # Grid/ graph class?
 # Input generator that interacts with the graph
 import numpy as np
-
 
 global graph
 
@@ -70,12 +76,12 @@ def initialize_graph(width, height, num_sensors, offset_range, noise_range, dist
     sensors = []
     if distribution_type == "random":
         for i in range(num_sensors):
-            tempx = round(np.random.rand()*width)
-            if np.random.rand() > 0.5:
-                tempx *= -1
-            tempy = round(np.random.rand()*height)
-            if np.random.rand() > 0.5:
-                tempy *= -1
+            tempx = round(np.random.rand() * width)
+            # if np.random.rand() > 0.5:
+            #     tempx *= -1
+            tempy = round(np.random.rand() * height)
+            # if np.random.rand() > 0.5:
+            #     tempy *= -1
 
             temp_offset = np.random.rand() * offset_range
             temp_noise = np.random.rand() * noise_range
@@ -92,11 +98,11 @@ def gen_input(num, force_range):
     input_list = []
     ellipse_width, ellipse_height = 40, 40
     for i in range(num):
-        temp_f = np.random.rand()*force_range
-        temp_x = np.random.rand()*graph.width
-        temp_y = np.random.rand()*graph.height
-        el_width = np.random.rand()*ellipse_width
-        el_height = np.random.rand()*ellipse_height
+        temp_f = np.random.rand() * force_range
+        temp_x = np.random.rand() * graph.width
+        temp_y = np.random.rand() * graph.height
+        el_width = np.random.rand() * ellipse_width
+        el_height = np.random.rand() * ellipse_height
         input_list.append(Ellipse(temp_x, temp_y, el_width, el_height, temp_f))
 
     return input_list
@@ -127,8 +133,36 @@ def gen_output(inp):
 
     return output
 
+
 initialize_graph(100, 100, 100, 5, 6)
-out = gen_output(gen_input(100, 50))
+out = gen_output(gen_input(1, 50))
+
+
+def create_histogram(g: Graph, l: List):
+    hg = np.zeros(shape=(g.width+1, g.height+1))
+    for i in range(len(l)):
+        hg[g.sensors[i].x, g.sensors[i].y] = l[i]
+    kernel_3_gaussian = np.array([
+        [1 / 16, 1 / 8, 1 / 16],
+        [1 / 8, 1 / 4, 1 / 8],
+        [1 / 16, 1 / 8, 1 / 16]
+    ])
+    kernel_5_gaussian = 1/256 * np.array([
+        [1, 4, 6, 4, 1],
+        [4, 16, 24, 16, 4],
+        [6, 24, 36, 24, 6],
+        [4, 16, 24, 16, 4],
+        [1, 4, 6, 4, 1]
+    ])
+    new = hg
+    for i in range(50):
+        new = Utils.convolve2D(new, kernel_5_gaussian, padding=2)
+    return new
+
+
 
 for line in out:
+    histogram = create_histogram(graph, line[3:-1])
+    viz = Visualizer(histogram)
+    viz.plot()
     print(line)
