@@ -5,11 +5,12 @@ from mpl_toolkits.mplot3d import Axes3D, art3d
 from matplotlib import cm
 import matplotlib.pyplot as plt
 import numpy as np
+from PIL import Image
 
 
 class Visualizer:
 
-    def __init__(self, heatmap: np.ndarray, sensors: List = None, ellipse = None):
+    def __init__(self, heatmap: np.ndarray, sensors: np.ndarray = None, ellipse = None):
         self.heatmap: np.ndarray = heatmap  # Representation of sheet with height values (sensor readings)
 
         self.sensors: List = sensors        # Sensors coordinates (for scatter plot)
@@ -20,6 +21,14 @@ class Visualizer:
         self.X: np.ndarray = X              # Xs of mesh
         self.Y: np.ndarray = Y              # Ys of mesh
 
+    def create_image(self) -> None:
+        self.heatmap = np.interp(self.heatmap, (self.heatmap.min(), self.heatmap.max()), (0, +255)).round()
+        self.sensors = np.interp(self.sensors, (self.sensors.min(), self.sensors.max()), (0, +255)).round()
+        heatmap_img = Image.fromarray(np.uint8(self.heatmap), 'L')
+        sensors_img = Image.fromarray(np.uint8(self.sensors), 'L')
+        heatmap_img.save('HeatMap.jpg')
+        sensors_img.save('SensorsOnly.jpg')
+
     def plot(self) -> None:
         fig = plt.figure()
         ax = fig.gca(projection='3d')
@@ -27,15 +36,14 @@ class Visualizer:
         colors = cm.ScalarMappable(cmap=cm.coolwarm).to_rgba(self.heatmap)
 
         # plot_surface with points X,Y,Z and data_value as colors
-        surf = ax.plot_surface(self.X, self.Y, self.heatmap, rstride=1, cstride=1, facecolors=colors,
+        ax.plot_surface(self.X, self.Y, self.heatmap, rstride=1, cstride=1, facecolors=colors,
                                linewidth=0, antialiased=True)
 
-        if self.sensors:
-            scatter = ax.scatter([s.x for s in self.sensors], [s.y for s in self.sensors], [0 for _ in self.sensors],
-                                 c=["b" if not self.sensors[i].reading > 0 else "r" for i in
-                                    range(len(self.sensors))], s=[50 for _ in self.sensors])
+        if self.sensors is not None:
+            ax.plot_surface(self.X, self.Y, self.sensors, rstride=1, cstride=1, facecolors=colors,
+                               linewidth=0, antialiased=True)
 
-        if self.ellipse:
+        if self.ellipse is not None:
             patch = Ellipse(xy=(self.ellipse.h, self.ellipse.k), width=self.ellipse.a, height=self.ellipse.b, color="r")
             scatter = ax.add_patch(patch)
             art3d.pathpatch_2d_to_3d(patch)

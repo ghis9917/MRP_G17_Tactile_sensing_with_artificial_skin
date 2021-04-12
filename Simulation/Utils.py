@@ -1,4 +1,7 @@
+import math
+
 import numpy as np
+
 
 # Src: https://medium.com/analytics-vidhya/2d-convolution-using-python-numpy-43442ff5f381
 def convolve2D(image, kernel, padding=0, strides=1):
@@ -18,7 +21,7 @@ def convolve2D(image, kernel, padding=0, strides=1):
 
     # Apply Equal Padding to All Sides
     if padding != 0:
-        imagePadded = np.zeros((image.shape[0] + padding*2, image.shape[1] + padding*2))
+        imagePadded = np.zeros((image.shape[0] + padding * 2, image.shape[1] + padding * 2))
         imagePadded[int(padding):int(-1 * padding), int(padding):int(-1 * padding)] = image
     else:
         imagePadded = image
@@ -42,3 +45,38 @@ def convolve2D(image, kernel, padding=0, strides=1):
                     break
 
     return output
+
+# Src: https://stackoverflow.com/questions/22959698/distance-from-given-point-to-given-ellipse
+def distance_ellipse_point(semi_major, semi_minor, p):
+    px = abs(p[0])
+    py = abs(p[1])
+
+    tx = 0.707
+    ty = 0.707
+
+    a = semi_major
+    b = semi_minor
+
+    for x in range(0, 3):
+        x = a * tx
+        y = b * ty
+
+        ex = (a * a - b * b) * tx ** 3 / a
+        ey = (b * b - a * a) * ty ** 3 / b
+
+        rx = x - ex
+        ry = y - ey
+
+        qx = px - ex
+        qy = py - ey
+
+        r = math.hypot(ry, rx)
+        q = math.hypot(qy, qx)
+
+        tx = min(1, max(0, (qx * r / q + ex) / a))
+        ty = min(1, max(0, (qy * r / q + ey) / b))
+        t = math.hypot(ty, tx)
+        tx /= t
+        ty /= t
+
+    return (math.copysign(a * tx, p[0]), math.copysign(b * ty, p[1]))

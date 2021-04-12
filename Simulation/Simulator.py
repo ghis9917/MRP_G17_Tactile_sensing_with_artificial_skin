@@ -1,9 +1,11 @@
 # %%
+import math
 from typing import List
 import numpy as np
 import Utils
-from Constants import SMOOTHING, N_CONVOLUTIONS
+from Constants import SMOOTHING, N_CONVOLUTIONS, DISTANCE_WEIGHT
 from Graph import Graph
+from HeatMap import HeatMap
 from Sensors import Sensor
 from Shapes import Ellipse, Shape
 from Visualizer import Visualizer
@@ -11,7 +13,7 @@ from Visualizer import Visualizer
 
 class Simulator:
     def __init__(self, w: int, h: int, n_sensors: int, offset: int, noise: int, distribution: str):
-        self.graph = self.initialize_graph(w, h, n_sensors, offset, noise, distribution)
+        self.graph, self.heatmap = self.initialize_graph(w, h, n_sensors, offset, noise, distribution)
         self.input: List[Shape] = []
         self.output: List = []
 
@@ -21,8 +23,9 @@ class Simulator:
 
     def show_readings(self) -> None:
         for line in self.output:
-            viz = Visualizer(self.create_histogram(line[3:-1]), self.graph.sensors, self.input[0])
-            viz.plot()
+            viz1 = Visualizer(self.heatmap.nodes, self.heatmap.sensor_readings(), self.input[0])
+            viz1.plot()
+            viz1.create_image()
 
     # Width & Height of sheet of skin
     # Number of Sensors
@@ -34,18 +37,12 @@ class Simulator:
         sensors = []
         if distribution_type == "random":
             for i in range(num_sensors):
-                tempx = round(np.random.rand() * width)
-                # if np.random.rand() > 0.5:
-                #     tempx *= -1
-                tempy = round(np.random.rand() * height)
-                # if np.random.rand() > 0.5:
-                #     tempy *= -1
-
+                tempx = math.floor(np.random.rand() * width)
+                tempy = math.floor(np.random.rand() * height)
                 temp_offset = np.random.rand() * offset_range
                 temp_noise = np.random.rand() * noise_range
-
                 sensors.append(Sensor(i, tempx, tempy, temp_offset, temp_noise))
-        return Graph(sensors, width, height)
+        return Graph(sensors, width, height), HeatMap(width, height, sensors)
 
     # Number of input
     # Range x ([0, x]) from which the amount of force of every input is drawn
@@ -78,6 +75,16 @@ class Simulator:
                     sensor.reading = sensor.noise(ellipse.force)
                 else:
                     sensor_output.append(0)
+
+            for i in range(self.heatmap.width):
+                for j in range(self.heatmap.height):
+                    if ellipse.is_in(i, j):
+                        self.heatmap.nodes[i, j] = ellipse.force
+                    else:
+                        point_on_ellipse = Utils.distance_ellipse_point(ellipse.a, ellipse.b, (i-ellipse.h, j-ellipse.k))
+                        point_on_ellipse = (point_on_ellipse[0]+ellipse.h, point_on_ellipse[1]+ellipse.k,)
+                        self.heatmap.nodes[i, j] = self.compute_pressure(point_on_ellipse[0], point_on_ellipse[1], i, j, ellipse.force)
+
             frame_l = []
             frame_l.append("ellipse")
             frame_l.append(idn)
@@ -89,6 +96,10 @@ class Simulator:
             idn += 1
 
         return output
+
+    def compute_pressure(self, x1, y1, x2, y2, force):
+        distance = math.dist((x1, y1), (x2, y2))
+        return force * (np.exp(-(distance*DISTANCE_WEIGHT)**2))
 
     def create_histogram(self, l: List) -> np.ndarray:
         hg = np.zeros(shape=(self.graph.width + 1, self.graph.height + 1))
@@ -114,7 +125,7 @@ class Simulator:
 
 
 if __name__ == "__main__":
-    sim = Simulator(100, 100, 100, 5, 6, "random")
+    sim = Simulator(100, 100, 50, 5, 6, "random")
     sim.simulate()
     sim.show_readings()
 
