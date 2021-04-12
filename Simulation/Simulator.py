@@ -2,6 +2,7 @@
 from typing import List
 import numpy as np
 import Utils
+from Constants import SMOOTHING, N_CONVOLUTIONS
 from Graph import Graph
 from Sensors import Sensor
 from Shapes import Ellipse, Shape
@@ -20,7 +21,7 @@ class Simulator:
 
     def show_readings(self) -> None:
         for line in self.output:
-            viz = Visualizer(self.create_histogram(line[3:-1]), self.graph.sensors)
+            viz = Visualizer(self.create_histogram(line[3:-1]), self.graph.sensors, self.input[0])
             viz.plot()
 
     # Width & Height of sheet of skin
@@ -74,6 +75,7 @@ class Simulator:
             for sensor in self.graph.sensors:
                 if ellipse.is_in(sensor.x, sensor.y):
                     sensor_output.append(sensor.noise(ellipse.force))
+                    sensor.reading = sensor.noise(ellipse.force)
                 else:
                     sensor_output.append(0)
             frame_l = []
@@ -91,7 +93,7 @@ class Simulator:
     def create_histogram(self, l: List) -> np.ndarray:
         hg = np.zeros(shape=(self.graph.width + 1, self.graph.height + 1))
         for i in range(len(l)):
-            hg[self.graph.sensors[i].x, self.graph.sensors[i].y] = l[i]
+            hg[self.graph.sensors[i].y, self.graph.sensors[i].x] = l[i]
         kernel_3_gaussian = np.array([
             [1 / 16, 1 / 8, 1 / 16],
             [1 / 8, 1 / 4, 1 / 8],
@@ -105,8 +107,9 @@ class Simulator:
             [1, 4, 6, 4, 1]
         ])
         new = hg
-        for i in range(50):
-            new = Utils.convolve2D(new, kernel_5_gaussian, padding=2)
+        if SMOOTHING:
+            for i in range(N_CONVOLUTIONS):
+                new = Utils.convolve2D(new, kernel_5_gaussian, padding=2)
         return new
 
 
