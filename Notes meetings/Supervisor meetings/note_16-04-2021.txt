@@ -1,0 +1,21 @@
+Shape not a gaussian, but for now it-s ok, not for the final project, no more constraints of the grid of course, and cover a 3D object (nn has to be able to generalize to these cases too)
+Start from a real classes ae real knife and create classes from them, so we are sure to be able to can classify.
+They doesn't care about the position/orientation of the interaction, ok to work with dangerous/safe.
+Ae. classes, someone is guiding you, is pushing you, is punching... 
+Human-robot interaction, hitting something, they want very specific amd realistic class, I've hit something, I'm stuck, I've a backpack, (how can we simulate a backpack...)
+Start with a small classes, then try to expand their number
+Take into account the computational complexity to decide how much realistic the interaction need to be
+Create examples also without any intraction but only noises to consider the backgorund noise, no contact state
+Classes' ideas from Rico&Likas:
+Punch
+Open hand
+Band
+Wire
+Hit
+finger
+scratching
+
+No more than 40 sensors, area of (look at the file on teams)
+
+Next week meeting 16:00
+
