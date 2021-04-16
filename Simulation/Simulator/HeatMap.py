@@ -1,3 +1,5 @@
+from itertools import product
+
 import numpy as np
 
 
@@ -16,3 +18,10 @@ class HeatMap:
 
     def sensor_readings(self):
         return self.sensors * self.nodes
+
+    def get_heatmap_copy(self):
+        temp = np.zeros(shape=self.nodes.shape)
+        for i, j in product(range(self.width), range(self.height)):
+            temp[i, j] = self.nodes[i, j]
+
+        return temp
