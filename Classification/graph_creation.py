@@ -1,7 +1,11 @@
+import ast
+import json
+import os
 import networkx as nx
 import numpy as np
 import matplotlib.pyplot as plt
-from karateclub import Graph2Vec
+from embeddings import get_embeddings
+
 
 '''
 how to connect the nodes?
@@ -9,7 +13,7 @@ how to connect graph of different frame?
 '''
 
 
-def display_graphs_properties(graph, mode):
+def display_graphs_properties(graph, mode=0):
     """
     :param mode: set the values to dispay:
         0: no display
@@ -59,7 +63,8 @@ def create_whole_graph(sensor_values, count):
         if start_id != 0:
             graph.add_edge(start_id - 1, start_id, frame=count)
 
-    display_graphs_properties(graph, 1)
+    display_graphs_properties(graph, mode=0)
+    return graph
 
 
 def create_frame_graph(sensor_values, count):
@@ -69,30 +74,68 @@ def create_frame_graph(sensor_values, count):
     for frame in sensor_values:
         for (x, y), value in np.ndenumerate(frame):
             id = (x * 8) + y
-            graph.add_node(id, pressure_val=value)
+            graph.add_node(id, feature=value)
             graph.add_edges_from(get_undirected_edges((x, y), 0), distance=1)
 
-        display_graphs_properties(graph, 0)
+        display_graphs_properties(graph, mode=0)
 
         graph_list.append(graph)
-    print('graphs generated:', len(graph_list))
-    embeddings(graph_list)
+    return graph_list
 
 
-def embeddings(graphs):
-    train_graph2vec = True
-    if train_graph2vec:
-        model = Graph2Vec(dimensions=32, attributed=True)  # dimensions=516,
-        model.fit(graphs)
-        embeds = model.get_embedding()
-        print(embeds)
-        np.save('embeds', embeds)
+def save_graphs(graphs):
+    # create a new directory if it doesn't exist yet
+    ROOT_DIR = os.path.abspath(os.curdir)
+    path = ROOT_DIR + '/graphs'
+    path1 = ROOT_DIR + '/graphs_attr'
+    try:
+        os.mkdir(path)
+    except OSError:
+        pass
+    try:
+        os.mkdir(path1)
+    except OSError:
+        pass
+    for count, graph in enumerate(graphs):
+        with open(f'graphs/graph{count}.json', 'w') as f:
+            json.dump(str(nx.to_dict_of_dicts(graph)), f)
+        with open(f'graphs_attr/graph{count}_attr.json', 'w') as f:
+            json.dump(str(graph.nodes.data()), f)
 
 
-training_frames = np.load(r"datasets\frames.npy", allow_pickle=True)
-whole = False  # create a graph with all frames(True) of for each frame(False)
-for count, entry in enumerate(training_frames):
+def read_graphs():
+    graphs = []
+    for file in os.listdir('graphs'):
+        with open(f'graphs/{file}', 'r') as js_file_graph:
+            graphs.append(nx.from_dict_of_dicts(ast.literal_eval(json.load(js_file_graph))))
+
+    for count, file in enumerate(os.listdir('graphs_attr')):
+        with open(f'graphs_attr/{file}', 'r') as js_file_attr:
+            attrs = ast.literal_eval(json.load(js_file_attr))
+            attributes_dict = {}
+            for entry in attrs:
+                attributes_dict[entry[0]] = entry[1]
+            nx.set_node_attributes(graphs[count], attributes_dict)
+    return graphs
+
+
+graphs = []
+create_graphs = True
+if create_graphs:
+    training_frames = np.load(r"datasets\frames.npy", allow_pickle=True)
+    whole = False  # create a graph with all frames(True) of for each frame(False)
+    for count, entry in enumerate(training_frames):
+        if count < 2:
+            if whole:
+                graphs.append(create_whole_graph(entry, count))
+            else:
+                graphs.append(create_frame_graph(entry, count))
     if whole:
-        create_whole_graph(entry, count)
+        save_graphs(graphs)
     else:
-        create_frame_graph(entry, count)
+        get_embeddings(graphs)
+
+graphs = read_graphs()
+print(len(graphs))
+display_graphs_properties(graphs[0], 0)
+
