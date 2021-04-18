@@ -122,7 +122,12 @@ def read_graphs():
 graphs = []
 create_graphs = True
 if create_graphs:
-    training_frames = np.load(r"datasets\frames.npy", allow_pickle=True)
+    try:
+        training_frames = np.load('datasets/frames.npy', allow_pickle=True)
+    except FileNotFoundError:
+        print('Not possible to load data. Directory "dataset" does not exist. '
+              '\nPlease create directory and add "frames.npy"')
+        exit()
     whole = False  # create a graph with all frames(True) of for each frame(False)
     for count, entry in enumerate(training_frames):
         if count < 2:
