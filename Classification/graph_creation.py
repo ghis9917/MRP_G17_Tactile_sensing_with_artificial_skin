@@ -125,7 +125,7 @@ if create_graphs:
     try:
         training_frames = np.load('datasets/frames.npy', allow_pickle=True)
     except FileNotFoundError:
-        print('Not possible to load data. Directory "dataset" does not exist. '
+        print('Not possible to load data. Directory "datasets" does not exist. '
               '\nPlease create directory and add "frames.npy"')
         exit()
     whole = False  # create a graph with all frames(True) of for each frame(False)
