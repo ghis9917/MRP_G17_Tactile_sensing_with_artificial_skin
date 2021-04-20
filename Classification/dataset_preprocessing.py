@@ -30,3 +30,4 @@ for name, touch in grouped:
 print("length training frames", len(training_frames))
 print("length labels", len(labels))
 np.save("datasets/frames.npy", np.asarray(training_frames))
+np.save("datasets/labels.npy", np.asarray(labels))

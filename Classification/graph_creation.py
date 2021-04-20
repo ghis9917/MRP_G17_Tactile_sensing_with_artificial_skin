@@ -120,7 +120,7 @@ def read_graphs():
 
 
 graphs = []
-create_graphs = True
+create_graphs = False
 if create_graphs:
     try:
         training_frames = np.load('datasets/frames.npy', allow_pickle=True)
@@ -140,6 +140,13 @@ if create_graphs:
     else:
         get_embeddings(graphs)
 
+
+try:
+    labels = np.load('datasets/labels.npy')
+except FileNotFoundError:
+    print('Not possible to load data. Directory "datasets" does not exist. '
+          '\nPlease create directory and add "labels.npy"')
+    exit()
 graphs = read_graphs()
 print(len(graphs))
 display_graphs_properties(graphs[0], 0)
