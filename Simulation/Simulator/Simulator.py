@@ -10,7 +10,7 @@ from Utils.Constants import SMOOTHING, N_CONVOLUTIONS, KERNEL_5_GAUSSIAN
 from Graph import Graph
 from HeatMap import HeatMap
 from Sensors import Sensor
-from Shapes.Shapes import Shape, Ellipse
+from Shapes import Shape
 from Visualization.Visualizer import Visualizer
 from Input import Input
 
@@ -30,8 +30,6 @@ class Simulator:
             viz1 = Visualizer(self.heatmap.nodes, self.heatmap.sensor_readings(), self.input[0].shape)
             # viz1.ani_3D(out.reading, self.heatmap.sensors)
             viz1.ani_2D(out.reading, self.heatmap.sensors)
-            # viz1.plot()
-            # viz1.create_image()
 
     # Width & Height of sheet of skin
     # Number of Sensors
@@ -61,12 +59,10 @@ class Simulator:
             temp_f = np.random.rand() * force_range
             temp_x = np.random.rand() * self.graph.width
             temp_y = np.random.rand() * self.graph.height
-            el_width = np.random.rand() * ellipse_width
-            el_height = np.random.rand() * ellipse_height
-            velocity = np.asarray([[2], [2]])
+            velocity = np.asarray([[1], [1]])
             center = np.asarray([[temp_x], [temp_y]])
             print(center)
-            input_list.append(Input(Ellipse(center, temp_x, temp_y, el_width, el_height, temp_f), velocity, 31))
+            input_list.append(Input(Shape(center, temp_f, 'hand.png'), velocity, 30))
 
         return input_list
 

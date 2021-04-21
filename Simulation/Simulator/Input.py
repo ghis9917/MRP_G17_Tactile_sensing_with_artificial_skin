@@ -1,5 +1,5 @@
 import numpy as np
-from Shapes.Shapes import Shape
+from Shapes import Shape
 
 
 class Input:
@@ -9,4 +9,4 @@ class Input:
         self.frames = frames
 
     def update_frame(self):
-        self.shape.update_center(self.vel)
+        self.shape.set_traslated_map(self.vel)
