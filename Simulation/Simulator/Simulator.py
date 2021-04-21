@@ -16,10 +16,12 @@ from Input import Input
 
 
 class Simulator:
-    def __init__(self, w: int, h: int, n_sensors: int, offset: int, noise: int, distribution: str):
+    def __init__(self, w: int, h: int, n_sensors: int, offset: int, noise: int, distribution: str, shape: str, n_frames: int):
         self.graph, self.heatmap = self.initialize_graph(w, h, n_sensors, offset, noise, distribution)
         self.input: List[Shape] = []
         self.output: List = []
+        self.shape: str = shape
+        self.n_frames: int = n_frames
 
     def simulate(self) -> None:
         self.input = self.gen_input(1, 50)
@@ -37,7 +39,7 @@ class Simulator:
     # Range x ([-x, x]) from which a noise is drawn at random
     # Type of sensor distribution (TODO Implement different sensor distributions)
     @staticmethod
-    def initialize_graph(width: int, height: int, num_sensors: int, offset_range: int, noise_range: int, distribution_type: str ="random") -> Graph:
+    def initialize_graph(width: int, height: int, num_sensors: int, offset_range: int, noise_range: int, distribution_type: str ="random") -> (Graph, HeatMap):
         sensors = []
         if distribution_type == "random":
             for i in range(num_sensors):
@@ -51,7 +53,7 @@ class Simulator:
     # Number of input
     # Range x ([0, x]) from which the amount of force of every input is drawn
     # TODO for now input is based on ellipses. Try image based approach for a wider range of shapes
-    def gen_input(self, num: int, force_range: float) -> List[Shape]:
+    def gen_input(self, num: int, force_range: float) -> List[Input]:
         input_list = []
         ellipse_width, ellipse_height = 40, 40
 
@@ -62,7 +64,7 @@ class Simulator:
             velocity = np.asarray([[1], [1]])
             center = np.asarray([[temp_x], [temp_y]])
             print(center)
-            input_list.append(Input(Shape(center, temp_f, 'hand.png'), velocity, 30))
+            input_list.append(Input(Shape(center, temp_f, self.shape), velocity, self.n_frames))
 
         return input_list
 
@@ -106,7 +108,16 @@ class Simulator:
 
 
 if __name__ == "__main__":
-    sim = Simulator(100, 100, 40, 5, 6, "random")
+    sim = Simulator(
+        w=100,
+        h=100,
+        n_sensors=40,
+        offset=5,
+        noise=6,
+        distribution="random",
+        shape='circle blur.png',
+        n_frames=30
+    )
     sim.simulate()
     sim.show_readings()
 

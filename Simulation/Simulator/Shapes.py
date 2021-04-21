@@ -18,7 +18,7 @@ class Shape:
 
     def compute_pressure(self, x, y):
         if self.is_in(x, y):
-            return self.force
+            return self.force * self.current_map[x, y]
         else:
             return 0
 
