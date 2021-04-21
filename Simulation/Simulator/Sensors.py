@@ -14,6 +14,8 @@ class Sensor:
         # Each sensor will be subject to noise, the type of which still has to be decided upon.
         # (Gaussian noise for now) the noise variable (for now) is the standard deviation.
         self.noise_sd = noise_sd
+        self.tilt = np.array([[0][0]])
+        self.depth = 0
 
     def noise(self, val):
         return val + np.random.normal(0, self.noise_sd) + self.offset
