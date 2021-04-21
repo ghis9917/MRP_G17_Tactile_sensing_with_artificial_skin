@@ -28,7 +28,8 @@ class Simulator:
     def show_readings(self) -> None:
         for out in self.output:
             viz1 = Visualizer(self.heatmap.nodes, self.heatmap.sensor_readings(), self.input[0].shape)
-            viz1.ani(out.reading, self.heatmap.sensors)
+            # viz1.ani_3D(out.reading, self.heatmap.sensors)
+            viz1.ani_2D(out.reading, self.heatmap.sensors)
             # viz1.plot()
             # viz1.create_image()
 
@@ -89,10 +90,10 @@ class Simulator:
                 # HEATMAP UPDATES
                 for i, j in product(range(self.heatmap.width), range(self.heatmap.height)):
                     self.heatmap.nodes[i, j] = shape.compute_pressure(i, j)
-
                 out.reading.append(self.heatmap.get_heatmap_copy())
                 temp = self.heatmap.get_heatmap_copy()
                 self.heatmap.nodes = temp * 0.8
+
                 example.update_frame()
             output.append(out)
             idn += 1
@@ -109,7 +110,7 @@ class Simulator:
 
 
 if __name__ == "__main__":
-    sim = Simulator(75, 75, 100, 5, 6, "random")
+    sim = Simulator(100, 100, 40, 5, 6, "random")
     sim.simulate()
     sim.show_readings()
 

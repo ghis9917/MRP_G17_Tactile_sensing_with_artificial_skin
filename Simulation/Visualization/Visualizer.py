@@ -50,7 +50,32 @@ class Visualizer:
 
         plt.show()
 
-    def ani(self, animation_heatmap, sensors_map):
+    def ani_2D(self, animation_heatmap, sensors_map):
+        fig = plt.figure()
+        ax = fig.add_subplot()
+
+        plot_sensors_reading = ax.imshow(animation_heatmap[0].T+animation_heatmap[0].T*sensors_map.T, cmap='gray')
+
+        def data_gen(framenumber, soln, plot2, X, Y):
+            ax.clear()
+            print(framenumber)
+            plot2 = ax.imshow(soln[framenumber].T+animation_heatmap[framenumber].T*sensors_map.T, cmap='gray')
+            return plot2,
+
+        anim = animation.FuncAnimation(
+            fig,
+            data_gen,
+            frames=len(animation_heatmap),
+            fargs=(animation_heatmap, plot_sensors_reading, self.X, self.Y),
+            interval=10,
+            blit=False,
+            repeat=True
+        )
+
+        anim.save('../out/2D.gif', fps = 60, dpi = 80)
+        plt.show()
+
+    def ani_3D(self, animation_heatmap, sensors_map):
         fig = plt.figure()
         ax = fig.gca(projection='3d')
         plot_args = {
@@ -83,7 +108,7 @@ class Visualizer:
             repeat=True
         )
 
-        anim.save('out/try.gif', fps = 60, dpi = 80)
+        anim.save('../out/3D.gif', fps = 60, dpi = 80)
         plt.show()
 
     @staticmethod

@@ -42,9 +42,10 @@ class Ellipse(Shape):
         if self.is_in(x, y):
             return self.force
         else:
-            point_on_ellipse = Utils.distance_ellipse_point(self.a, self.b, (x - self.center[0], y - self.center[1]))
-            point_on_ellipse = (point_on_ellipse[0] + self.center[0], point_on_ellipse[1] + self.center[1])
-            return self.gaussian_pressure(point_on_ellipse[0], point_on_ellipse[1], x, y, self.force)
+            return 0
+            # point_on_ellipse = Utils.distance_ellipse_point(self.a, self.b, (x - self.center[0], y - self.center[1]))
+            # point_on_ellipse = (point_on_ellipse[0] + self.center[0], point_on_ellipse[1] + self.center[1])
+            # return self.gaussian_pressure(point_on_ellipse[0], point_on_ellipse[1], x, y, self.force)
 
     @staticmethod
     def gaussian_pressure(x1, y1, x2, y2, force):
