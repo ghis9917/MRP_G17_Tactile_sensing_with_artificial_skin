@@ -3,6 +3,8 @@ import math
 from itertools import product
 from typing import List
 import numpy as np
+from tqdm import tqdm
+
 import Utils.Constants as Const
 
 from Output import Output
@@ -29,10 +31,12 @@ class Simulator:
         self.output = self.gen_output(self.input)
 
     def show_readings(self) -> None:
+        counter = 0
         for out in self.output:
-            viz1 = Visualizer(self.heatmap.nodes, self.heatmap.sensor_readings(), self.input[0].shape)
+            viz1 = Visualizer(self.heatmap.nodes, self.heatmap.sensor_readings(), self.input[counter].shape)
             # viz1.ani_3D(out.reading, self.heatmap.sensors)
-            # viz1.ani_2D(out.reading, self.heatmap.sensors)
+            viz1.ani_2D(out.reading, self.heatmap.sensors)
+            counter += 1
 
     # Width & Height of sheet of skin
     # Number of Sensors
@@ -68,7 +72,7 @@ class Simulator:
                 [np.random.rand() * self.graph.height]
             ])
             shape = Const.SHAPES[np.random.randint(len(Const.SHAPES))]
-            frames = round(np.random.rand() * Const.MAX_FRAMES)
+            frames = math.ceil(np.random.rand() * Const.MAX_FRAMES)
             force = np.random.rand() * Const.MAX_FORCE
 
             simulation_class = Class(
@@ -92,8 +96,8 @@ class Simulator:
     def gen_output(self, inp: List[Input]) -> List:
         idn = 0
         output = []
-        for example in inp:
-            out = Output(idn, example.simulation_class)
+        for example in tqdm(inp, leave=False):
+            out = Output(idn, example.shape, example.simulation_class)
             shape = example.shape
             for frame in range(example.frames):
                 # Output is a list
@@ -107,6 +111,7 @@ class Simulator:
                 #         sensor_output.append(0)
 
                 # HEATMAP UPDATES
+                example.update_frame(np.asarray([[0], [0]]).astype(float))
                 for i, j in product(range(self.heatmap.width), range(self.heatmap.height)):
                     self.heatmap.nodes[i, j] = shape.compute_pressure(i, j)
                 out.reading.append(self.heatmap.get_heatmap_copy())
@@ -133,7 +138,8 @@ class Simulator:
             writer = csv.writer(file)
             writer.writerow(
                 ["id", "frame", "big/small", "dynamic/static", "press/tap", "dangeours/safe"] +
-                ["S"+str(number) for number in range(self.n_sensors)]
+                ["S"+str(number) for number in range(self.n_sensors)] +
+                ["shape", "pressure"]
             )
             for out in self.output:
                 for frame in range(len(out.reading)):
@@ -152,7 +158,9 @@ class Simulator:
                     sensors_resing_list = list(current_sensor_reading.flatten())
                     second_part = [value-1 for value in sensors_resing_list if value != 0]
 
-                    writer.writerow(first_part + second_part)
+                    third_part = [out.shape.shape, out.shape.force]
+
+                    writer.writerow(first_part + second_part + third_part)
 
 
 if __name__ == "__main__":
@@ -165,7 +173,7 @@ if __name__ == "__main__":
         distribution="random",
         shape='hand.png'
     )
-    sim.simulate(10)
+    sim.simulate(Const.N_SIMULATIONS)
     # sim.show_readings()
     sim.create_database()
 

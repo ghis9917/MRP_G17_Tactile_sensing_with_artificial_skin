@@ -1,5 +1,6 @@
 import numpy as np
 
+N_SIMULATIONS = 1000
 SMOOTHING = True
 N_CONVOLUTIONS = 50
 DISTANCE_WEIGHT = 0.1
@@ -16,7 +17,7 @@ KERNEL_5_GAUSSIAN = 1 / 256 * np.array([
     [1, 4, 6, 4, 1]
 ])
 
-#
+# INPUT VALUES
 MAX_VELOCITY = 5
 MAX_FRAMES = 30
 MAX_FORCE = 15

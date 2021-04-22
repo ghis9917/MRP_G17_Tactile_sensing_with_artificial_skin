@@ -6,6 +6,7 @@ from matplotlib import cm, animation
 import matplotlib.pyplot as plt
 import numpy as np
 from PIL import Image
+import Utils.Constants as Const
 
 
 class Visualizer:
@@ -58,7 +59,6 @@ class Visualizer:
 
         def data_gen(framenumber, soln, plot2, X, Y):
             ax.clear()
-            print(framenumber)
             plot2 = ax.imshow(soln[framenumber].T+animation_heatmap[framenumber].T*sensors_map.T, cmap='gray')
             return plot2,
 
@@ -90,12 +90,14 @@ class Visualizer:
 
         plot_grid = ax.plot_surface(self.X, self.Y, animation_heatmap[0].T, **plot_args)
         plot_sensors_reading = ax.plot_surface(self.X, self.Y, animation_heatmap[0].T*sensors_map.T, **plot_args)
+        ax.set_zlim3d(0, Const.MAX_FORCE)
 
         def data_gen(framenumber, soln, plot1, plot2, X, Y):
             ax.clear()
             print(framenumber)
             plot1 = ax.plot_surface(X, Y, soln[framenumber].T, **plot_args)
             plot2 = ax.plot_surface(X, Y, soln[framenumber].T*sensors_map.T, **plot_args)
+            ax.set_zlim3d(0, Const.MAX_FORCE)
             return (plot1, plot2),
 
         anim = animation.FuncAnimation(

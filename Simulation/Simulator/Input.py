@@ -10,5 +10,9 @@ class Input:
         self.frames = frames
         self.simulation_class = simulation_class
 
-    def update_frame(self):
-        self.shape.set_traslated_map(self.vel)
+    def update_frame(self, vel = None):
+        if vel is None:
+            self.shape.set_traslated_map(self.vel)
+        else:
+            self.shape.set_traslated_map(vel)
+
