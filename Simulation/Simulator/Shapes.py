@@ -11,14 +11,14 @@ class Shape:
         self.force: float = force
         self.center: np.ndarray = center
         self.current_map: np.ndarray = self.load_shape(map)
-        self.traslation: np.ndarray = np.asarray([[0], [0]])
+        self.traslation: np.ndarray = np.asarray([[0], [0]]).astype(float)
 
     def is_in(self, x, y):
         return self.current_map[x, y] > 0
 
     def compute_pressure(self, x, y):
         if self.is_in(x, y):
-            return self.force * self.current_map[x, y]
+            return self.force * (self.current_map[x, y]/255)
         else:
             return 0
 

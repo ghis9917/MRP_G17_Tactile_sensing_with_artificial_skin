@@ -3,8 +3,10 @@ import math
 from itertools import product
 from typing import List
 import numpy as np
+import Utils.Constants as Const
 
 from Output import Output
+from Classes import Class
 from Utils import Utils
 from Utils.Constants import SMOOTHING, N_CONVOLUTIONS, KERNEL_5_GAUSSIAN
 from Graph import Graph
@@ -16,22 +18,21 @@ from Input import Input
 
 
 class Simulator:
-    def __init__(self, w: int, h: int, n_sensors: int, offset: int, noise: int, distribution: str, shape: str, n_frames: int):
+    def __init__(self, w: int, h: int, n_sensors: int, offset: int, noise: int, distribution: str, shape: str):
         self.graph, self.heatmap = self.initialize_graph(w, h, n_sensors, offset, noise, distribution)
         self.input: List[Shape] = []
-        self.output: List = []
-        self.shape: str = shape
-        self.n_frames: int = n_frames
+        self.output: List[Output] = []
+        self.n_sensors: int = n_sensors
 
-    def simulate(self) -> None:
-        self.input = self.gen_input(1, 50)
+    def simulate(self, n_simulations) -> None:
+        self.input = self.gen_input(n_simulations, 50)
         self.output = self.gen_output(self.input)
 
     def show_readings(self) -> None:
         for out in self.output:
             viz1 = Visualizer(self.heatmap.nodes, self.heatmap.sensor_readings(), self.input[0].shape)
             # viz1.ani_3D(out.reading, self.heatmap.sensors)
-            viz1.ani_2D(out.reading, self.heatmap.sensors)
+            # viz1.ani_2D(out.reading, self.heatmap.sensors)
 
     # Width & Height of sheet of skin
     # Number of Sensors
@@ -58,13 +59,33 @@ class Simulator:
         ellipse_width, ellipse_height = 40, 40
 
         for i in range(num):
-            temp_f = np.random.rand() * force_range
-            temp_x = np.random.rand() * self.graph.width
-            temp_y = np.random.rand() * self.graph.height
-            velocity = np.asarray([[1], [1]])
-            center = np.asarray([[temp_x], [temp_y]])
-            print(center)
-            input_list.append(Input(Shape(center, temp_f, self.shape), velocity, self.n_frames))
+            velocity = np.asarray([
+                [np.random.rand() * Const.MAX_VELOCITY],
+                [np.random.rand() * Const.MAX_VELOCITY]
+            ])
+            center = np.asarray([
+                [np.random.rand() * self.graph.width],
+                [np.random.rand() * self.graph.height]
+            ])
+            shape = Const.SHAPES[np.random.randint(len(Const.SHAPES))]
+            frames = round(np.random.rand() * Const.MAX_FRAMES)
+            force = np.random.rand() * Const.MAX_FORCE
+
+            simulation_class = Class(
+                shape_size=Const.BIG(shape),
+                movement=np.linalg.norm(velocity) > 0, # Velocity vector has a norm higher than 0
+                touch_type=frames > Const.THRESHOLD_PRESS, # If the interaction lasts for more than 3 frames than the touch becomes a "press"
+                dangerous=force > Const.THRESHOLD_DANGEROUS # Unit is kPa, higher than 90.5 is considered dangerous
+            )
+
+            input_list.append(
+                Input(
+                    shape=Shape(center, force, shape),
+                    vel=velocity,
+                    frames=frames,
+                    simulation_class=simulation_class
+                )
+            )
 
         return input_list
 
@@ -72,7 +93,7 @@ class Simulator:
         idn = 0
         output = []
         for example in inp:
-            out = Output(idn)
+            out = Output(idn, example.simulation_class)
             shape = example.shape
             for frame in range(example.frames):
                 # Output is a list
@@ -106,6 +127,33 @@ class Simulator:
                 hg = Utils.convolve2D(hg, KERNEL_5_GAUSSIAN, padding=2)
         return hg
 
+    def create_database(self):
+        import csv
+        with open('../out/dataset.csv', 'w', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerow(
+                ["id", "frame", "big/small", "dynamic/static", "press/tap", "dangeours/safe"] +
+                ["S"+str(number) for number in range(self.n_sensors)]
+            )
+            for out in self.output:
+                for frame in range(len(out.reading)):
+                    first_part = [
+                        str(out.id),
+                        frame,
+                        int(out.simulation_class.big),
+                        int(out.simulation_class.moving),
+                        int(out.simulation_class.press),
+                        int(out.simulation_class.dangerous)
+                    ]
+
+                    current_reading = out.reading[frame]
+                    current_sensor_reading = (current_reading + self.heatmap.sensors) * self.heatmap.sensors
+
+                    sensors_resing_list = list(current_sensor_reading.flatten())
+                    second_part = [value-1 for value in sensors_resing_list if value != 0]
+
+                    writer.writerow(first_part + second_part)
+
 
 if __name__ == "__main__":
     sim = Simulator(
@@ -115,10 +163,9 @@ if __name__ == "__main__":
         offset=5,
         noise=6,
         distribution="random",
-        shape='circle blur.png',
-        n_frames=30
+        shape='hand.png'
     )
-    sim.simulate()
-    sim.show_readings()
-
+    sim.simulate(10)
+    # sim.show_readings()
+    sim.create_database()
 
