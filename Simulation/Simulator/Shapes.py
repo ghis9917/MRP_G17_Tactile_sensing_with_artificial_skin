@@ -1,5 +1,4 @@
 import numpy as np
-from PIL import Image
 import cv2
 
 
@@ -29,6 +28,7 @@ class Shape:
         self.traslation += vector
         self.current_map = self.shift(self.traslation)
 
+    # https://stackoverflow.com/questions/54274185/shifting-an-image-by-x-pixels-to-left-while-maintaining-the-original-shape/54274222
     def shift(self, vec):
         num_rows, num_cols = self.img.shape[:2]
         translation_matrix = np.float32([

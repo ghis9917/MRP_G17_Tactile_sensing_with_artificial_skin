@@ -1,8 +1,10 @@
 # %%
 import math
+import os
 from itertools import product
 from typing import List
 import numpy as np
+from PIL import Image
 from tqdm import tqdm
 
 import Utils.Constants as Const
@@ -44,7 +46,8 @@ class Simulator:
     # Range x ([-x, x]) from which a noise is drawn at random
     # Type of sensor distribution (TODO Implement different sensor distributions)
     @staticmethod
-    def initialize_graph(width: int, height: int, num_sensors: int, offset_range: int, noise_range: int, distribution_type: str ="random") -> (Graph, HeatMap):
+    def initialize_graph(width: int, height: int, num_sensors: int, offset_range: int, noise_range: int,
+                         distribution_type: str = "random") -> (Graph, HeatMap):
         sensors = []
         if distribution_type == "random":
             for i in range(num_sensors):
@@ -77,9 +80,10 @@ class Simulator:
 
             simulation_class = Class(
                 shape_size=Const.BIG(shape),
-                movement=np.linalg.norm(velocity) > 0, # Velocity vector has a norm higher than 0
-                touch_type=frames > Const.THRESHOLD_PRESS, # If the interaction lasts for more than 3 frames than the touch becomes a "press"
-                dangerous=force > Const.THRESHOLD_DANGEROUS # Unit is kPa, higher than 90.5 is considered dangerous
+                movement=np.linalg.norm(velocity) > 0,  # Velocity vector has a norm higher than 0
+                touch_type=frames > Const.THRESHOLD_PRESS,
+                # If the interaction lasts for more than 3 frames than the touch becomes a "press"
+                dangerous=force > Const.THRESHOLD_DANGEROUS  # Unit is kPa, higher than 90.5 is considered dangerous
             )
 
             input_list.append(
@@ -96,7 +100,7 @@ class Simulator:
     def gen_output(self, inp: List[Input]) -> List:
         idn = 0
         output = []
-        for example in tqdm(inp, leave=False):
+        for example in tqdm(inp):
             out = Output(idn, example.shape, example.simulation_class)
             shape = example.shape
             for frame in range(example.frames):
@@ -133,34 +137,42 @@ class Simulator:
         return hg
 
     def create_database(self):
-        import csv
-        with open('../out/dataset.csv', 'w', newline='') as file:
-            writer = csv.writer(file)
-            writer.writerow(
-                ["id", "frame", "big/small", "dynamic/static", "press/tap", "dangeours/safe"] +
-                ["S"+str(number) for number in range(self.n_sensors)] +
-                ["shape", "pressure"]
-            )
-            for out in self.output:
-                for frame in range(len(out.reading)):
-                    first_part = [
-                        str(out.id),
-                        frame,
-                        int(out.simulation_class.big),
-                        int(out.simulation_class.moving),
-                        int(out.simulation_class.press),
-                        int(out.simulation_class.dangerous)
-                    ]
 
-                    current_reading = out.reading[frame]
-                    current_sensor_reading = (current_reading + self.heatmap.sensors) * self.heatmap.sensors
+        version = 1
+        if not os.path.exists(f'../out/v{version}'):
+            os.makedirs(f'../out/v{version}')
 
-                    sensors_resing_list = list(current_sensor_reading.flatten())
-                    second_part = [value-1 for value in sensors_resing_list if value != 0]
+        # import csv
+        # with open(f'../out/v{version}/dataset.csv', 'w', newline='') as file:
+        #     writer = csv.writer(file)
+        #     writer.writerow(
+        #         ["id", "frame", "big/small", "dynamic/static", "press/tap", "dangeours/safe"] +
+        #         ["S" + str(number) for number in range(self.n_sensors)] +
+        #         ["shape", "pressure"]
+        #     )
+        #     for out in self.output:
+        #         for frame in range(len(out.reading)):
+        #             first_part = [
+        #                 str(out.id),
+        #                 frame,
+        #                 int(out.simulation_class.big),
+        #                 int(out.simulation_class.moving),
+        #                 int(out.simulation_class.press),
+        #                 int(out.simulation_class.dangerous)
+        #             ]
+        #
+        #             current_reading = out.reading[frame]
+        #             current_sensor_reading = (current_reading + self.heatmap.sensors) * self.heatmap.sensors
+        #
+        #             sensors_resing_list = list(current_sensor_reading.flatten())
+        #             second_part = [value - 1 for value in sensors_resing_list if value != 0]
+        #
+        #             third_part = [out.shape.shape, out.shape.force]
+        #
+        #             writer.writerow(first_part + second_part + third_part)
 
-                    third_part = [out.shape.shape, out.shape.force]
-
-                    writer.writerow(first_part + second_part + third_part)
+        sensor_placement = Image.fromarray(np.uint8(self.heatmap.sensors), 'L')
+        sensor_placement.save(f'../out/v{version}/sensor_map.png')
 
 
 if __name__ == "__main__":
@@ -176,4 +188,3 @@ if __name__ == "__main__":
     sim.simulate(Const.N_SIMULATIONS)
     # sim.show_readings()
     sim.create_database()
-
