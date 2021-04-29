@@ -4,7 +4,7 @@ import os
 import networkx as nx
 import numpy as np
 import matplotlib.pyplot as plt
-from embeddings import get_embeddings
+from embeddings import *
 
 
 '''
@@ -23,7 +23,7 @@ def display_graphs_properties(graph, mode=0):
     """
 
     if mode > 0:
-        print('connected: ', nx.is_connected(graph))
+        #print('connected: ', nx.is_connected(graph))
         print('nodes: ', graph.number_of_nodes())
         print('edges: ', graph.number_of_edges())
 
@@ -49,9 +49,9 @@ def get_undirected_edges(index, start_value):
     return edges
 
 
-def create_whole_graph(sensor_values, count):
+def create_whole_graph(sensor_values, count, mode=0):
     print(f'creation of whole graph number {count}...\nframes in sequence:', len(sensor_values))
-    graph = nx.Graph()
+    graph = nx.DiGraph()
     n_sensors = sensor_values[0].shape[0] * sensor_values[0].shape[1]
     for count, frame in enumerate(sensor_values):
         start_id = count * n_sensors
@@ -59,17 +59,20 @@ def create_whole_graph(sensor_values, count):
             id = start_id + ((x * 8) + y)
             index_new = ((count * 8) + x, y)
             graph.add_node(id, pressure_val=value)
-            graph.add_edges_from(get_undirected_edges(index_new, count * 8), distance=1)
+            edges = get_undirected_edges(index_new, count * 8)
+            graph.add_edges_from(edges, features={'distance': 1, 'time': 0})
         if start_id != 0:
-            graph.add_edge(start_id - 1, start_id, frame=count)
+            graph.add_edge(start_id - 1, start_id, features={'distance': 0, 'time': 1})
 
-    display_graphs_properties(graph, mode=0)
+    display_graphs_properties(graph, mode)
     return graph
 
 
-def create_frame_graph(sensor_values, count):
+def create_frame_graph(sensor_values, count, mode=0):
     graph = nx.Graph()
-    print(f'creation of frame graphs from set number {count}...\nnumber of values', len(sensor_values))
+    if count % 100 == 0:
+        print(f'creation of frame graphs from set number {count}...'
+              f'\nnumber of values', len(sensor_values))
     graph_list = []
     for frame in sensor_values:
         for (x, y), value in np.ndenumerate(frame):
@@ -77,7 +80,7 @@ def create_frame_graph(sensor_values, count):
             graph.add_node(id, feature=value)
             graph.add_edges_from(get_undirected_edges((x, y), 0), distance=1)
 
-        display_graphs_properties(graph, mode=0)
+        display_graphs_properties(graph, mode)
 
         graph_list.append(graph)
     return graph_list
@@ -119,18 +122,21 @@ def read_graphs():
     return graphs
 
 
-graphs = []
-create_graphs = False
-if create_graphs:
+def graph_creation(whole=True):
+    """
+        :param whole: set the graph to create:
+            True: create entire graph with all frames
+            False: create a single graph for each frame
+        """
+    graphs = []
     try:
         training_frames = np.load('datasets/frames.npy', allow_pickle=True)
     except FileNotFoundError:
         print('Not possible to load data. Directory "datasets" does not exist. '
               '\nPlease create directory and add "frames.npy"')
         exit()
-    whole = False  # create a graph with all frames(True) of for each frame(False)
     for count, entry in enumerate(training_frames):
-        if count < 2:
+        if count < 2: #TODO REMOVEEEEEEEEEEE later
             if whole:
                 graphs.append(create_whole_graph(entry, count))
             else:
@@ -141,13 +147,9 @@ if create_graphs:
         get_embeddings(graphs)
 
 
-try:
-    labels = np.load('datasets/labels.npy')
-except FileNotFoundError:
-    print('Not possible to load data. Directory "datasets" does not exist. '
-          '\nPlease create directory and add "labels.npy"')
-    exit()
-graphs = read_graphs()
-print(len(graphs))
-display_graphs_properties(graphs[0], 0)
+if __name__ == "__main__":
+    graph_creation(whole=True)
+    graph_creation(whole=False)
+
+
 
