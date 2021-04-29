@@ -11,13 +11,30 @@ class HeatMap:
         self.sensors: np.ndarray = self.create_sensor_map(sensors)
 
     def create_sensor_map(self, sensors):
-        temp = np.zeros(shape=(self.width, self.height))
+        temp = []
+        print("test")
+        for x in range(self.width):
+            templ = []
+            for y in range(self.height):
+                templ.append(None)
+            temp.append(templ)
+
         for sensor in sensors:
-            temp[sensor.x, sensor.y] = 1
+            temp[sensor.x][sensor.y] = sensor
+
         return temp
 
     def sensor_readings(self):
-        return self.sensors * self.nodes
+        s1 = len(self.sensors)
+        s2 = len(self.sensors[0])
+        temp = np.zeros(shape=(s1, s2))
+        for x, y in product(range(s1), range(s2)):
+            if self.sensors[x][y] is not None:
+                temp[x][y] = self.sensors[x][y].get_reading(self.nodes[x, y])
+                print("sensor reading worked ", temp[x, y])
+            else:
+                temp[x, y] = 0
+        return temp
 
     def get_heatmap_copy(self):
         temp = np.zeros(shape=self.nodes.shape)
