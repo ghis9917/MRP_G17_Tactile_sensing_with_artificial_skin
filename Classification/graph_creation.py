@@ -49,7 +49,7 @@ def get_undirected_edges(index, start_value):
     return edges
 
 
-def create_whole_graph(sensor_values, count):
+def create_whole_graph(sensor_values, count, mode=0):
     print(f'creation of whole graph number {count}...\nframes in sequence:', len(sensor_values))
     graph = nx.DiGraph()
     n_sensors = sensor_values[0].shape[0] * sensor_values[0].shape[1]
@@ -64,11 +64,11 @@ def create_whole_graph(sensor_values, count):
         if start_id != 0:
             graph.add_edge(start_id - 1, start_id, features={'distance': 0, 'time': 1})
 
-    display_graphs_properties(graph, mode=1)
+    display_graphs_properties(graph, mode)
     return graph
 
 
-def create_frame_graph(sensor_values, count):
+def create_frame_graph(sensor_values, count, mode=0):
     graph = nx.Graph()
     if count % 100 == 0:
         print(f'creation of frame graphs from set number {count}...'
@@ -80,7 +80,7 @@ def create_frame_graph(sensor_values, count):
             graph.add_node(id, feature=value)
             graph.add_edges_from(get_undirected_edges((x, y), 0), distance=1)
 
-        display_graphs_properties(graph, mode=3)
+        display_graphs_properties(graph, mode)
 
         graph_list.append(graph)
     return graph_list
@@ -136,16 +136,20 @@ def graph_creation(whole=True):
               '\nPlease create directory and add "frames.npy"')
         exit()
     for count, entry in enumerate(training_frames):
-        if whole:
-            graphs.append(create_whole_graph(entry, count))
-        else:
-            graphs.append(create_frame_graph(entry, count))
+        if count < 2: #TODO REMOVEEEEEEEEEEE later
+            if whole:
+                graphs.append(create_whole_graph(entry, count))
+            else:
+                graphs.append(create_frame_graph(entry, count))
     if whole:
         save_graphs(graphs)
     else:
         get_embeddings(graphs)
 
 
+if __name__ == "__main__":
+    graph_creation(whole=True)
+    graph_creation(whole=False)
 
 
 
