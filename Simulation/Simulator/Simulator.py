@@ -1,4 +1,5 @@
 # %%
+
 import math
 import os
 from itertools import product
@@ -7,17 +8,17 @@ import numpy as np
 from PIL import Image
 from tqdm import tqdm
 
-import Utils.Constants as Const
+import Simulation.Utils.Constants as Const
 
 from Output import Output
 from Classes import Class
-from Utils import Utils
-from Utils.Constants import SMOOTHING, N_CONVOLUTIONS, KERNEL_5_GAUSSIAN
+from Simulation.Utils import Utils
+from Simulation.Utils.Constants import SMOOTHING, N_CONVOLUTIONS, KERNEL_5_GAUSSIAN
 from Graph import Graph
 from HeatMap import HeatMap
 from Sensors import Sensor
 from Shapes import Shape
-from Visualization.Visualizer import Visualizer
+from Simulation.Visualization.Visualizer import Visualizer
 from Input import Input
 
 
@@ -185,6 +186,7 @@ if __name__ == "__main__":
         distribution="random",
         shape='hand.png'
     )
-    sim.simulate(Const.N_SIMULATIONS)
-    # sim.show_readings()
-    sim.create_database()
+    # sim.simulate(Const.N_SIMULATIONS)
+    sim.simulate(1)
+    sim.show_readings()
+    # sim.create_database()

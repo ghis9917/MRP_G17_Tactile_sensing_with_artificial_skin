@@ -26,3 +26,4 @@ six==1.15.0
 tornado==6.1
 traitlets==5.0.5
 wcwidth==0.2.5
+PyNiteFEA==0.0.28
