@@ -3,7 +3,6 @@ import json
 import os
 import networkx as nx
 import numpy as np
-import matplotlib.pyplot as plt
 from embeddings import *
 
 
@@ -86,7 +85,7 @@ def create_frame_graph(sensor_values, count, mode=0):
     return graph_list
 
 
-def save_graphs(graphs):
+def save_graph(graph, count):
     # create a new directory if it doesn't exist yet
     ROOT_DIR = os.path.abspath(os.curdir)
     path = ROOT_DIR + '/graphs'
@@ -99,11 +98,10 @@ def save_graphs(graphs):
         os.mkdir(path1)
     except OSError:
         pass
-    for count, graph in enumerate(graphs):
-        with open(f'graphs/graph{count}.json', 'w') as f:
-            json.dump(str(nx.to_dict_of_dicts(graph)), f)
-        with open(f'graphs_attr/graph{count}_attr.json', 'w') as f:
-            json.dump(str(graph.nodes.data()), f)
+    with open(f'graphs/graph{count}.json', 'w') as f:
+        json.dump(str(nx.to_dict_of_dicts(graph)), f)
+    with open(f'graphs_attr/graph{count}_attr.json', 'w') as f:
+        json.dump(str(graph.nodes.data()), f)
 
 
 def read_graphs():
@@ -136,20 +134,18 @@ def graph_creation(whole=True):
               '\nPlease create directory and add "frames.npy"')
         exit()
     for count, entry in enumerate(training_frames):
-        if count < 2: #TODO REMOVEEEEEEEEEEE later
+        if count < 10: #TODO REMOVEEEEEEEEEEE later
             if whole:
-                graphs.append(create_whole_graph(entry, count))
+                save_graph(create_whole_graph(entry, count), count)
             else:
                 graphs.append(create_frame_graph(entry, count))
-    if whole:
-        save_graphs(graphs)
-    else:
+    if not whole:
         get_embeddings(graphs)
 
 
 if __name__ == "__main__":
     graph_creation(whole=True)
-    graph_creation(whole=False)
+    #graph_creation(whole=False)
 
 
 
