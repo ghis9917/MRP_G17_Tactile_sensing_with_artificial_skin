@@ -23,7 +23,11 @@ MAX_FRAMES = 30
 MAX_FORCE = 15
 THRESHOLD_PRESS = 3
 THRESHOLD_DANGEROUS = 9.05
+MAX_OFFSET = 10
+MAX_NOISE = 10
 SHAPES = ['circle blur.png', 'circle no blur.png', 'hand.png']
+
+NEAREST_NEIGHBOUR_THRESHOLD = 10
 
 def BIG(val: str) -> bool:
     if val == 'circle blur.png':
@@ -32,3 +36,4 @@ def BIG(val: str) -> bool:
         return True
     elif val == 'hand.png':
         return True
+

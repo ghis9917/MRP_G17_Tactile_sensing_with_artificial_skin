@@ -1,16 +1,27 @@
 from itertools import product
+from typing import List
 
 import numpy as np
+from Sensors import Sensor
+import Utils.Constants as Const
 
 
 class HeatMap:
-    def __init__(self, w, h, sensors):
+    def __init__(self, w, h, sensors_map):
         self.width = w
         self.height = h
         self.nodes: np.ndarray = np.zeros(shape=(w, h))
-        self.sensors: np.ndarray = self.create_sensor_map(sensors)
+        # self.sensors: List = self.check_what_this_is(None)
+        self.sensors_map: np.ndarray = sensors_map#self.create_sensor_map(sensors_map)
+        self.sensors: List[Sensor] = self.build_sensors_list(self.sensors_map)
 
     def create_sensor_map(self, sensors):
+        temp = np.zeros(shape=(self.width, self.height))
+        for sensor in sensors:
+            temp[sensor.x, sensor.y] = 1
+        return temp
+
+    def check_what_this_is(self, sensors):
         temp = []
         print("test")
         for x in range(self.width):
@@ -25,6 +36,7 @@ class HeatMap:
         return temp
 
     def sensor_readings(self):
+        return self.sensors_map * self.nodes
         s1 = len(self.sensors)
         s2 = len(self.sensors[0])
         temp = np.zeros(shape=(s1, s2))
@@ -42,3 +54,58 @@ class HeatMap:
             temp[i, j] = self.nodes[i, j]
 
         return temp
+
+    def build_sensors_list(self, sensors_map):
+        sensors_list = []
+        picked_already = []
+        for row, col in product(range(sensors_map.shape[1]), range(sensors_map.shape[0])):
+            temp = []
+            if sensors_map[row, col] == 1 and not (row, col) in picked_already:
+                all_temp = self.fill_flood(row, col)
+                picked_already.extend(all_temp)
+                temp.extend(all_temp)
+                sensors_list.append(temp)
+        final = []
+        counter = 0
+        for sensor in sensors_list:
+            final.append(Sensor(
+                counter,
+                [coord[0] for coord in sensor],
+                [coord[1] for coord in sensor],
+                np.random.rand() * Const.MAX_OFFSET,
+                np.random.rand() * Const.MAX_NOISE
+            ))
+        return final
+
+    # Recursive version of the fill flood algorithm
+    # def fill_flood(self, row, col, current_single_sensor_list):
+    #     for (i, j) in [(0, -1), (-1, 0), (+1, 0), (0, +1)]:
+    #         try:
+    #             if self.sensors_map[row + i, col + j] == 1 and not (row + i, col + j) in current_single_sensor_list:
+    #                 current_single_sensor_list.append((row + i, col + j))
+    #                 current_single_sensor_list = self.recursive_neighbours_call(row + i, col + j, current_single_sensor_list)
+    #         except Exception as e:
+    #             print(e)
+    #             continue
+    #     return current_single_sensor_list
+
+    # Fill flood algorithm with queue, avoids stack overflow for recusive calls
+    def fill_flood(self, row, col):
+        final = []
+        Q = [(row, col)]
+        S = []
+        while len(Q) > 0:
+            n = Q.pop(0)
+            try:
+                if self.sensors_map[n[0], n[1]] == 1 and not (n[0], n[1]) in S:
+                    final.append((n[0], n[1]))
+                    S.append((n[0], n[1]))
+                    Q.append((n[0] - 1, n[1]))
+                    Q.append((n[0] + 1, n[1]))
+                    Q.append((n[0], n[1] - 1))
+                    Q.append((n[0], n[1] + 1))
+            except Exception as e:
+                print(e)
+                continue
+        return final
+

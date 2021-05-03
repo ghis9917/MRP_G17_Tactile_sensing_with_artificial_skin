@@ -2,10 +2,10 @@ import numpy as np
 
 
 class Sensor:
-    def __init__(self, id_num, x, y, offset, noise_sd):
+    def __init__(self, id_num, xs, ys, offset, noise_sd):
         self.id = id_num
-        self.x = x
-        self.y = y
+        self.x = xs
+        self.y = ys
         # self.reading = 0
         # Each sensor will have a certain offset, which is negative for output that is too low
         # and positive for output that is too high. For now, the offset is a constant! This can

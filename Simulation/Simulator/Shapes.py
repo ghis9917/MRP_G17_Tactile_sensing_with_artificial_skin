@@ -5,10 +5,10 @@ import cv2
 class Shape:
     MAP_PATH = '../input/'
 
-    def __init__(self, center: np.ndarray, force: float, map: str):
+    def __init__(self, center: np.ndarray, force: float, map: str, width, height):
         self.force: float = force
         self.center: np.ndarray = center
-        self.current_map: np.ndarray = self.load_shape(map)
+        self.current_map: np.ndarray = self.load_shape(map, width, height)
         self.traslation: np.ndarray = np.asarray([[0], [0]]).astype(float)
         self.shape = map
 
@@ -37,6 +37,6 @@ class Shape:
         ])
         return cv2.warpAffine(self.img, translation_matrix, (num_cols, num_rows))
 
-    def load_shape(self, map: str):
-        self.img = cv2.imread(self.MAP_PATH + map, cv2.IMREAD_GRAYSCALE)
+    def load_shape(self, map: str, w, h):
+        self.img = cv2.resize(cv2.imread(self.MAP_PATH + map, cv2.IMREAD_GRAYSCALE), dsize=(w, h), interpolation=cv2.INTER_CUBIC)
         return self.img
