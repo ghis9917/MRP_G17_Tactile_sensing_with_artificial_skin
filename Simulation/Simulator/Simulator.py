@@ -38,6 +38,7 @@ class Simulator:
         self.heatmap = self.initialize_heatmap(w, h)
         print("Heatmap Initialized")
         self.n_sensors: int = len(self.heatmap.sensors)
+        self.test_sensors()
 
     def simulate(self, n_simulations) -> None:
         self.input = self.gen_input(n_simulations)
@@ -77,9 +78,7 @@ class Simulator:
         sensors_map = 1 * (sensors_map > 0)
         return HeatMap(w, h, sensors_map)
 
-    # Number of input
-    # Range x ([0, x]) from which the amount of force of every input is drawn
-    # TODO for now input is based on ellipses. Try image based approach for a wider range of shapes
+
     def gen_input(self, num: int) -> List[Input]:
         input_list = []
         ellipse_width, ellipse_height = 40, 40
@@ -194,47 +193,52 @@ class Simulator:
             writer = csv.writer(file)
             writer.writerow(["S" + str(number) for number in range(self.n_sensors)])
 
-            for i1, j1 in product(range(self.heatmap.sensors_map.shape[0]), range(self.heatmap.sensors_map.shape[1])):
+            for i in range(len(self.heatmap.sensors)):
                 row = []
-                if self.heatmap.sensors_map[i1, j1] == 1:
-                    for i2, j2 in product(range(self.heatmap.sensors_map.shape[0]),
-                                          range(self.heatmap.sensors_map.shape[1])):
-                        if self.heatmap.sensors_map[i2, j2] == 1:
-                            if i2 == i1 and j2 == j1:
-                                row.append(0)
-                            else:
-                                dist = math.dist((i1, j1), (i2, j2))
-                                val = dist if dist < Const.NEAREST_NEIGHBOUR_THRESHOLD else 0
-                                row.append(val)
+                for j in range(len(self.heatmap.sensors)):
+                    if i == j:
+                        row.append(0)
+                    else:
+                        dist = math.dist(self.heatmap.sensors[i].center, self.heatmap.sensors[j].center)
+                        val = dist if dist < Const.NEAREST_NEIGHBOUR_THRESHOLD else 0
+                        row.append(val)
                 if len(row) > 0:
                     writer.writerow(row)
 
     def test_sensors(self):
-        test_sensor = self.heatmap.sensors[0]
-        test_sensor_map = np.zeros(shape=(self.width, self.height))
-        for x, y in product(test_sensor.x, test_sensor.y):
-            test_sensor_map[x, y] = 1
-        sensor_placement = Image.fromarray(np.uint8(test_sensor_map * 255), 'L')
-        sensor_placement.show('')
+        for sensor in self.heatmap.sensors:
+            prova = np.zeros(shape=self.heatmap.sensors_map.shape)
+            for value in sensor.coords:
+                    prova[value[0], value[1]] = 1
+            sensor_placement = Image.fromarray(np.uint8(prova * 255), 'L')
+            sensor_placement.show('')
+            break
 
     def get_sensors_readings(self, frame):
         readings = []
         for sensor in self.heatmap.sensors:
-            tot = 0
-            for x, y in product(sensor.x, sensor.y):
-                tot += frame[x, y]
-            readings.append(tot/len(sensor.x))
+            reading = (sensor.map * frame)
+            mask = reading > 0
+            if np.sum(reading[mask]) == 0:
+                reading = 0
+            else:
+                reading = np.mean(reading[mask])
+            # tot = 0
+            # for (x, y) in sensor.coords:
+            #     tot += frame[x, y]
+            readings.append(reading)
         return readings
 
 
 
 if __name__ == "__main__":
     sim = Simulator(
-        w=1000,
-        h=1000
+        w=250,
+        h=250
     )
     # sim.simulate(Const.N_SIMULATIONS)
     sim.simulate(100)
     # sim.show_readings()
-    sim.create_database()
-    # TODO: test method to detect sensors as group of neighbour pixels
+    # sim.create_database()
+    # TODO: Optimize code by saving a map for every single sensor at the beginning in order to vectorize operations
+    # TODO: Add fixed length simulations with 0 ad padding for shorter interactions

@@ -27,7 +27,7 @@ MAX_OFFSET = 10
 MAX_NOISE = 10
 SHAPES = ['circle blur.png', 'circle no blur.png', 'hand.png']
 
-NEAREST_NEIGHBOUR_THRESHOLD = 10
+NEAREST_NEIGHBOUR_THRESHOLD = 100
 
 def BIG(val: str) -> bool:
     if val == 'circle blur.png':
