@@ -3,7 +3,8 @@ import json
 import os
 import networkx as nx
 import numpy as np
-from embeddings import *
+import matplotlib.pyplot as plt
+from embeddings import get_embeddings
 
 
 '''
@@ -22,7 +23,7 @@ def display_graphs_properties(graph, mode=0):
     """
 
     if mode > 0:
-        #print('connected: ', nx.is_connected(graph))
+        print('connected: ', nx.is_connected(graph))
         print('nodes: ', graph.number_of_nodes())
         print('edges: ', graph.number_of_edges())
 
@@ -48,9 +49,9 @@ def get_undirected_edges(index, start_value):
     return edges
 
 
-def create_whole_graph(sensor_values, count, mode=0):
+def create_whole_graph(sensor_values, count):
     print(f'creation of whole graph number {count}...\nframes in sequence:', len(sensor_values))
-    graph = nx.DiGraph()
+    graph = nx.Graph()
     n_sensors = sensor_values[0].shape[0] * sensor_values[0].shape[1]
     for count, frame in enumerate(sensor_values):
         start_id = count * n_sensors
@@ -58,20 +59,17 @@ def create_whole_graph(sensor_values, count, mode=0):
             id = start_id + ((x * 8) + y)
             index_new = ((count * 8) + x, y)
             graph.add_node(id, pressure_val=value)
-            edges = get_undirected_edges(index_new, count * 8)
-            graph.add_edges_from(edges, features={'distance': 1, 'time': 0})
+            graph.add_edges_from(get_undirected_edges(index_new, count * 8), distance=1)
         if start_id != 0:
-            graph.add_edge(start_id - 1, start_id, features={'distance': 0, 'time': 1})
+            graph.add_edge(start_id - 1, start_id, frame=count)
 
-    display_graphs_properties(graph, mode)
+    display_graphs_properties(graph, mode=0)
     return graph
 
 
-def create_frame_graph(sensor_values, count, mode=0):
+def create_frame_graph(sensor_values, count):
     graph = nx.Graph()
-    if count % 100 == 0:
-        print(f'creation of frame graphs from set number {count}...'
-              f'\nnumber of values', len(sensor_values))
+    print(f'creation of frame graphs from set number {count}...\nnumber of values', len(sensor_values))
     graph_list = []
     for frame in sensor_values:
         for (x, y), value in np.ndenumerate(frame):
@@ -79,13 +77,13 @@ def create_frame_graph(sensor_values, count, mode=0):
             graph.add_node(id, feature=value)
             graph.add_edges_from(get_undirected_edges((x, y), 0), distance=1)
 
-        display_graphs_properties(graph, mode)
+        display_graphs_properties(graph, mode=0)
 
         graph_list.append(graph)
     return graph_list
 
 
-def save_graph(graph, count):
+def save_graphs(graphs):
     # create a new directory if it doesn't exist yet
     ROOT_DIR = os.path.abspath(os.curdir)
     path = ROOT_DIR + '/graphs'
@@ -98,10 +96,11 @@ def save_graph(graph, count):
         os.mkdir(path1)
     except OSError:
         pass
-    with open(f'graphs/graph{count}.json', 'w') as f:
-        json.dump(str(nx.to_dict_of_dicts(graph)), f)
-    with open(f'graphs_attr/graph{count}_attr.json', 'w') as f:
-        json.dump(str(graph.nodes.data()), f)
+    for count, graph in enumerate(graphs):
+        with open(f'graphs/graph{count}.json', 'w') as f:
+            json.dump(str(nx.to_dict_of_dicts(graph)), f)
+        with open(f'graphs_attr/graph{count}_attr.json', 'w') as f:
+            json.dump(str(graph.nodes.data()), f)
 
 
 def read_graphs():
@@ -119,33 +118,48 @@ def read_graphs():
             nx.set_node_attributes(graphs[count], attributes_dict)
     return graphs
 
+def read_graph(file):
+    with open(f'graphs/{file}.json', 'r') as js_file_graph:
+        graph = nx.from_dict_of_dicts(ast.literal_eval(json.load(js_file_graph)))
 
-def graph_creation(whole=True):
-    """
-        :param whole: set the graph to create:
-            True: create entire graph with all frames
-            False: create a single graph for each frame
-        """
+    with open(f'graphs_attr/{file}_attr.json', 'r') as js_file_attr:
+            attrs = ast.literal_eval(json.load(js_file_attr))
+            attributes_dict = {}
+            for entry in attrs:
+                attributes_dict[entry[0]] = entry[1]
+            nx.set_node_attributes(graph, attributes_dict)
+            
+    return graph
+    
+
+if __name__=='__main__':
     graphs = []
+    create_graphs = False
+    if create_graphs:
+        try:
+            training_frames = np.load('datasets/frames.npy', allow_pickle=True)
+        except FileNotFoundError:
+            print('Not possible to load data. Directory "datasets" does not exist. '
+                '\nPlease create directory and add "frames.npy"')
+            exit()
+        whole = False  # create a graph with all frames(True) of for each frame(False)
+        for count, entry in enumerate(training_frames):
+            if count < 2:
+                if whole:
+                    graphs.append(create_whole_graph(entry, count))
+                else:
+                    graphs.append(create_frame_graph(entry, count))
+        if whole:
+            save_graphs(graphs)
+        else:
+            get_embeddings(graphs)
+
     try:
-        training_frames = np.load('datasets/frames.npy', allow_pickle=True)
+        labels = np.load('datasets/labels.npy')
     except FileNotFoundError:
         print('Not possible to load data. Directory "datasets" does not exist. '
-              '\nPlease create directory and add "frames.npy"')
+            '\nPlease create directory and add "labels.npy"')
         exit()
-    for count, entry in enumerate(training_frames):
-        if count < 10: #TODO REMOVEEEEEEEEEEE later
-            if whole:
-                save_graph(create_whole_graph(entry, count), count)
-            else:
-                graphs.append(create_frame_graph(entry, count))
-    if not whole:
-        get_embeddings(graphs)
-
-
-if __name__ == "__main__":
-    graph_creation(whole=True)
-    #graph_creation(whole=False)
-
-
-
+    graphs = read_graphs()
+    print(len(graphs))
+    display_graphs_properties(graphs[0], 0)
