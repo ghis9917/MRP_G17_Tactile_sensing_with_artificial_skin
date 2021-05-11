@@ -44,9 +44,8 @@ class Simulator:
         self.input = self.gen_input(n_simulations)
         print("Input Generated")
         self.output = self.gen_output(self.input)
-        print("Output computed")
-        self.create_database()
-        print("Data Saved")
+        print("Output computed & Data Saved")
+
 
     def show_readings(self) -> None:
         counter = 0
@@ -116,7 +115,7 @@ class Simulator:
         return input_list
 
     def gen_output(self, inp: List[Input]) -> List:
-        version = 3
+        version = 4
         if not os.path.exists(f'../out/v{version}'):
             os.makedirs(f'../out/v{version}')
         with open(f'../out/v{version}/dataset.csv', 'w', newline='') as file:
@@ -135,6 +134,9 @@ class Simulator:
         t2 = time.time()
 
         print(f"Simulation used {t2 - t1} seconds")
+
+        self.write_sensor_map_image(version)
+        self.write_sensor_adjacency_matrix(version)
 
         return output
 
@@ -161,6 +163,23 @@ class Simulator:
             ]
 
             second_part = self.get_sensors_readings(out.reading[frame])
+
+            third_part = [out.shape.shape, out.shape.force]
+            with open(f'../out/v{version}/dataset.csv', 'a', newline='') as f:
+                writer = csv.writer(f)
+                writer.writerow(first_part + second_part + third_part)
+
+        for frame in range(Const.MAX_FRAMES - len(out.reading)):
+            first_part = [
+                str(out.id),
+                len(out.reading) + frame,
+                int(out.simulation_class.big),
+                int(out.simulation_class.moving),
+                int(out.simulation_class.press),
+                int(out.simulation_class.dangerous)
+            ]
+
+            second_part = [0 for _ in self.heatmap.sensors]
 
             third_part = [out.shape.shape, out.shape.force]
             with open(f'../out/v{version}/dataset.csv', 'a', newline='') as f:
@@ -223,9 +242,6 @@ class Simulator:
                 reading = 0
             else:
                 reading = np.mean(reading[mask])
-            # tot = 0
-            # for (x, y) in sensor.coords:
-            #     tot += frame[x, y]
             readings.append(reading)
         return readings
 
@@ -237,8 +253,7 @@ if __name__ == "__main__":
         h=250
     )
     # sim.simulate(Const.N_SIMULATIONS)
-    sim.simulate(100)
+    sim.simulate(1000)
     # sim.show_readings()
     # sim.create_database()
     # TODO: Optimize code by saving a map for every single sensor at the beginning in order to vectorize operations
-    # TODO: Add fixed length simulations with 0 ad padding for shorter interactions
