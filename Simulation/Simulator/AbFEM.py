@@ -42,7 +42,8 @@ class SkinModel:
             raise ValueError("Tried to add plates without nodes")
 
         for l in range(self.layers):
-            for
+            for x, y in itertools.product(self.xlsp, self.ylsp):
+                pass
 
     def get_model(self):
         return self.fem
