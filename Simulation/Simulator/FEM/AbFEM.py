@@ -51,9 +51,7 @@ class SkinModel:
                 n4 = 'N' + str(int(x_o)) + '.' + str(int(y_o)) + '.' + str(int(l))
 
                 name = 'P' + x + '.' + y
-                self.fem.AddPlate(name, n1, n2, n3, n4)
-
-
+                self.fem.AddPlate(name, n1, n2, n3, n4, self.t, self.E, self.nu)
 
     def get_model(self):
         return self.fem
