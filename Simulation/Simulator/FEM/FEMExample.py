@@ -392,7 +392,7 @@ meshsize = 1  # ft
 load = 250  # psf
 
 myWall = RectWall(width, height, t, E, nu, meshsize, 'Fixed', 'Fixed', 'Fixed', 'Fixed')
-myWall.add_load(0, height, load, load)
+myWall.add_load(0, height, 0.01, 0.01)
 
 # Analyze the wall
 # import cProfile
@@ -431,6 +431,12 @@ myWall.plot_forces('Mxy')
 # Results from Timoshenko's "Theory of Plates and Shells" textbook
 D = E * t ** 3 / (12 * (1 - nu ** 2))
 print('Expected displacement from Timoshenko: ', 0.00126 * load * width ** 4 / D)
+
+for node in myWall.nodes:
+    print(node.name)
+
+
+
 
 # Create a PDF report
 # It will be output to the PyNite folder unless the 'output_path' variable below is modified
