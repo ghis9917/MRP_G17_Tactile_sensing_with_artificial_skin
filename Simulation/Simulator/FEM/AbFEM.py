@@ -42,8 +42,18 @@ class SkinModel:
             raise ValueError("Tried to add plates without nodes")
 
         for l in range(self.layers):
-            for x, y in itertools.product(self.xlsp, self.ylsp):
-                pass
+            for x, y in itertools.product(self.xlsp[:-1], self.ylsp[:-1]):
+                x_t, x_o, y_t, y_o = x, x+1, y, y+1
+
+                n1 = 'N' + str(int(x_t)) + '.' + str(int(y_t)) + '.' + str(int(l))
+                n2 = 'N' + str(int(x_t)) + '.' + str(int(y_o)) + '.' + str(int(l))
+                n3 = 'N' + str(int(x_o)) + '.' + str(int(y_t)) + '.' + str(int(l))
+                n4 = 'N' + str(int(x_o)) + '.' + str(int(y_o)) + '.' + str(int(l))
+
+                name = 'P' + x + '.' + y
+                self.fem.AddPlate(name, n1, n2, n3, n4)
+
+
 
     def get_model(self):
         return self.fem
