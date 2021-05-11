@@ -383,7 +383,7 @@ class RectWall():
 # %%
 # Rectangular wall panel implementation example
 # ---------------------------------------------
-E = 57000 * (4500) ** 0.5 * 144  # psf
+E = 0.001 #57000 * (4500) ** 0.5 * 144  # psf
 t = 1  # ft
 width = 10  # ft
 height = 10  # ft
