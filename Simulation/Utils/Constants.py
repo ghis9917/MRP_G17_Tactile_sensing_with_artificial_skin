@@ -1,6 +1,7 @@
 import numpy as np
 
-N_SIMULATIONS = 20000
+DATASET_VERSION = 6
+N_SIMULATIONS = 10000
 SMOOTHING = True
 N_CONVOLUTIONS = 50
 DISTANCE_WEIGHT = 0.1
@@ -25,7 +26,7 @@ THRESHOLD_PRESS = 3
 THRESHOLD_DANGEROUS = 9.05
 MAX_OFFSET = 10
 MAX_NOISE = 10
-SHAPES = ['circle blur.png', 'circle no blur.png', 'hand.png']
+SHAPES = ['circle blur.png', 'circle_blur_small.png', 'circle no blur.png', 'circle_no_blur_small.png', 'hand.png', 'hand_small.png']
 
 NEAREST_NEIGHBOUR_THRESHOLD = 100
 
@@ -36,4 +37,10 @@ def BIG(val: str) -> bool:
         return True
     elif val == 'hand.png':
         return True
+    elif val == 'circle_blur_small.png':
+        return False
+    elif val == 'circle_no_blur_small.png':
+        return False
+    elif val == 'hand_small.png':
+        return False
 

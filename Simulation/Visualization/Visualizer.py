@@ -72,7 +72,7 @@ class Visualizer:
             repeat=True
         )
 
-        anim.save('../out/2D.gif', fps = 60, dpi = 80)
+        anim.save('../out/2D.gif', fps = 30, dpi = 80)
         plt.show()
 
     def ani_3D(self, animation_heatmap, sensors_map):
@@ -110,7 +110,7 @@ class Visualizer:
             repeat=True
         )
 
-        anim.save('../out/3D.gif', fps = 60, dpi = 80)
+        anim.save('../out/3D.gif', fps = 30, dpi = 80)
         plt.show()
 
     @staticmethod

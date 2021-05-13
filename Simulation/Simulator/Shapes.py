@@ -15,11 +15,8 @@ class Shape:
     def is_in(self, x, y):
         return self.current_map[x, y] > 0
 
-    def compute_pressure(self, x, y):
-        if self.is_in(x, y):
-            return self.force * (self.current_map[x, y] / 255)
-        else:
-            return 0
+    def compute_pressure(self):
+        return self.force * (self.current_map / 255)
 
     def update_center(self, vel: np.ndarray) -> None:
         self.center += vel
@@ -32,8 +29,8 @@ class Shape:
     def shift(self, vec):
         num_rows, num_cols = self.img.shape[:2]
         translation_matrix = np.float32([
-            [1, 0, vec[0, 0] - round(self.img.shape[0] / 2)],
-            [0, 1, vec[1, 0] - round(self.img.shape[1] / 2)]
+            [1, 0, vec[0, 0] + self.center[0, 0] - round(self.img.shape[0] / 2)],
+            [0, 1, vec[1, 0] + self.center[1, 0] - round(self.img.shape[1] / 2)]
         ])
         return cv2.warpAffine(self.img, translation_matrix, (num_cols, num_rows))
 

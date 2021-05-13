@@ -80,13 +80,12 @@ class Simulator:
 
     def gen_input(self, num: int) -> List[Input]:
         input_list = []
-        ellipse_width, ellipse_height = 40, 40
 
         for i in range(num):
             velocity = np.asarray([
-                [np.random.rand() * Const.MAX_VELOCITY],
-                [np.random.rand() * Const.MAX_VELOCITY]
-            ])
+                [np.random.rand() * Const.MAX_VELOCITY * (1 if 0 > np.random.rand() >= 0.3 else 0 if 0.3 > np.random.rand() >= 0.6 else -1)],
+                [np.random.rand() * Const.MAX_VELOCITY * (1 if 0 > np.random.rand() >= 0.3 else 0 if 0.3 > np.random.rand() >= 0.6 else -1)]
+            ]) if np.random.rand() > 0.5 else np.asarray([[0], [0]])
             center = np.asarray([
                 [np.random.rand() * self.width],
                 [np.random.rand() * self.height]
@@ -97,7 +96,7 @@ class Simulator:
 
             simulation_class = Class(
                 shape_size=Const.BIG(shape),
-                movement=np.linalg.norm(velocity) > 0,  # Velocity vector has a norm higher than 0
+                movement=abs(np.linalg.norm(velocity)) > 0,  # Velocity vector has a norm higher than 0
                 touch_type=frames > Const.THRESHOLD_PRESS,
                 # If the interaction lasts for more than 3 frames than the touch becomes a "press"
                 dangerous=force > Const.THRESHOLD_DANGEROUS  # Unit is kPa, higher than 90.5 is considered dangerous
@@ -115,7 +114,7 @@ class Simulator:
         return input_list
 
     def gen_output(self, inp: List[Input]) -> List:
-        version = 4
+        version = Const.DATASET_VERSION
         if not os.path.exists(f'../out/v{version}'):
             os.makedirs(f'../out/v{version}')
         with open(f'../out/v{version}/dataset.csv', 'w', newline='') as file:
@@ -123,13 +122,14 @@ class Simulator:
             writer.writerow(
                 ["id", "frame", "big/small", "dynamic/static", "press/tap", "dangeours/safe"] +
                 ["S" + str(number) for number in range(self.n_sensors)] +
-                ["shape", "pressure"]
+                ["shape", "pressure", "velocity"]
             )
 
         t1 = time.time()
+        output = []
         pool = mp.Pool(mp.cpu_count())
         for i in range(len(inp)):
-            output = pool.apply(self.compute_frames, args=(i, inp[i], version))
+            output = (pool.apply(self.compute_frames, args=(i, inp[i], version)))
         pool.close()
         t2 = time.time()
 
@@ -143,15 +143,17 @@ class Simulator:
     def compute_frames(self, idn, example, version):
         out = Output(idn, example.shape, example.simulation_class)
         shape = example.shape
+
+        # Compute frames readings
         for _ in range(example.frames):
-            example.update_frame(np.asarray([[0], [0]]).astype(float))
-            for i, j in product(range(self.heatmap.width), range(self.heatmap.height)):
-                self.heatmap.nodes[i, j] = shape.compute_pressure(i, j)
+            example.update_frame(np.array([[0], [0]]).astype(float))
+            self.heatmap.nodes = shape.compute_pressure()
             out.reading.append(self.heatmap.get_heatmap_copy())
             temp = self.heatmap.get_heatmap_copy()
             self.heatmap.nodes = temp * 0.8
             example.update_frame()
 
+        # Write frames computed
         for frame in range(len(out.reading)):
             first_part = [
                 str(out.id),
@@ -164,11 +166,12 @@ class Simulator:
 
             second_part = self.get_sensors_readings(out.reading[frame])
 
-            third_part = [out.shape.shape, out.shape.force]
+            third_part = [out.shape.shape, out.shape.force, np.linalg.norm(example.vel)]
             with open(f'../out/v{version}/dataset.csv', 'a', newline='') as f:
                 writer = csv.writer(f)
                 writer.writerow(first_part + second_part + third_part)
 
+        # Write padding for remaining empty frames
         for frame in range(Const.MAX_FRAMES - len(out.reading)):
             first_part = [
                 str(out.id),
@@ -181,10 +184,12 @@ class Simulator:
 
             second_part = [0 for _ in self.heatmap.sensors]
 
-            third_part = [out.shape.shape, out.shape.force]
+            third_part = [out.shape.shape, out.shape.force, np.linalg.norm(example.vel)]
             with open(f'../out/v{version}/dataset.csv', 'a', newline='') as f:
                 writer = csv.writer(f)
                 writer.writerow(first_part + second_part + third_part)
+
+        return out
 
     def create_histogram(self, l: List) -> np.ndarray:
         hg = np.zeros(shape=(self.graph.width + 1, self.graph.height + 1))
@@ -229,8 +234,6 @@ class Simulator:
             prova = np.zeros(shape=self.heatmap.sensors_map.shape)
             for value in sensor.coords:
                     prova[value[0], value[1]] = 1
-            sensor_placement = Image.fromarray(np.uint8(prova * 255), 'L')
-            sensor_placement.show('')
             break
 
     def get_sensors_readings(self, frame):
@@ -252,8 +255,7 @@ if __name__ == "__main__":
         w=250,
         h=250
     )
-    # sim.simulate(Const.N_SIMULATIONS)
-    sim.simulate(1000)
+    sim.simulate(Const.N_SIMULATIONS)
     # sim.show_readings()
     # sim.create_database()
     # TODO: Optimize code by saving a map for every single sensor at the beginning in order to vectorize operations
