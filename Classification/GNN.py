@@ -45,11 +45,18 @@ class MyDataset(DGLDataset):
         self.graph_path = self.path
         #Import from Diego's graphs
         #self.graphs = [dgl.from_networkx(nxg, node_attrs=['pressure_val']) for nxg in read_graphs()]
+        labels = np.load('./labels.npy')
+        j = 0
         for file in os.listdir(self.graph_path):
             file = file.replace('.json', '')
-            self.graphs_names.append(file)
-        #import labels
-        self.labels=[torch.tensor([1.0,0.0]),torch.tensor([0.0,1.0])] #Test
+            if (labels[j]==1):
+                self.graphs_names.append(file)
+                self.labels.append(torch.tensor([0.0]))
+            if (labels[j]==2):
+                self.graphs_names.append(file)
+                self.labels.append(torch.tensor([1.0]))
+            j += 1
+        print('Database loaded')
 
     def __getitem__(self, i):
         graph = dgl.from_networkx(read_graph(self.graphs_names[i]), node_attrs=['pressure_val'])
@@ -58,9 +65,6 @@ class MyDataset(DGLDataset):
     def __len__(self):
         return len(self.graphs_names)
 
-    def num_examples(path):
-        return len(os.listdir(path))
-        
 ## Graph Neural Network ##
 class GCN(nn.Module):
     def __init__(self, in_feat, hidden1, hidden2, output, path='./graphs'):
@@ -76,9 +80,9 @@ class GCN(nn.Module):
     def save(self, file='GNN.tar'):
         torch.save(self.state_dict(), file)
 
-    def load(file='GNN.tar'):
-        model = GCN()
-        model.load_state_dict(torch_load(file))
+    def load(file, in_feat, hidden1, hidden2, output, path='./graphs'):
+        model = GCN(in_feat, hidden1, hidden2, output, path)
+        model.load_state_dict(torch.load(file))
         return model
 
     def forward(self, graphs, features):
@@ -97,15 +101,17 @@ class GCN(nn.Module):
         optimizer = torch.optim.Adam(model.parameters(), lr=lr) #choose an optimizer
         loss = nn.BCELoss()
         ## Configuring the DataLoader ##
-        num_examples = MyDataset.num_examples(self.path)
+        self.dataset = MyDataset(self.path)
+        num_examples = self.dataset.__len__()
         num_train = int(num_examples * test_rate)
 
         train_sampler = SubsetRandomSampler(torch.arange(num_train))
         test_sampler = SubsetRandomSampler(torch.arange(num_train, num_examples))
 
-        self.dataset = MyDataset(self.path)
-        train_dataloader = GraphDataLoader(self.dataset, sampler=train_sampler, batch_size=5, drop_last=False)
-        test_dataloader = GraphDataLoader(self.dataset, sampler=test_sampler, batch_size=5, drop_last=False)
+        batch_size = 20
+        
+        train_dataloader = GraphDataLoader(self.dataset, sampler=train_sampler, batch_size=batch_size, drop_last=False)
+        test_dataloader = GraphDataLoader(self.dataset, sampler=test_sampler, batch_size=batch_size, drop_last=False)
 
         ## Training phase ## 
         acc_history = []
@@ -119,13 +125,14 @@ class GCN(nn.Module):
                 J.backward()
                 optimizer.step() #backpropagate
                 print(ex,' / ',num_train)
+                ex += batch_size
 
             #calculate the accuracy on test set and print
             num_correct = 0; num_tests = 0
             for batched_graph, label in test_dataloader:
                 pred = model(batched_graph, batched_graph.ndata['pressure_val'].float().reshape(len(batched_graph.ndata['pressure_val']),1)) #forward computation on the batched graph
                 num_correct += ((pred>0.5) == label).sum().item()
-                num_tests += label.shape[1]
+                num_tests += (label.shape[0]*label.shape[1])
             acc_history.append(num_correct / num_tests)
             print('Test accuracy: ', num_correct / num_tests)
         
@@ -135,16 +142,28 @@ class GCN(nn.Module):
             print('Log salvato')
 
     def evaluation(self):
+        self.dataset = MyDataset(self.path)
+        num_examples = self.dataset.__len__()
+        num_train = int(num_examples * 0.5)
+
+        validation_sampler = SubsetRandomSampler(torch.arange(num_train))
+        validation_dataloader = GraphDataLoader(self.dataset, sampler=validation_sampler, batch_size=20, drop_last=False)
+
         with torch.no_grad():
             num_correct = 0; num_tests = 0
-            for batched_graph, label in val_dataloader:
+            for batched_graph, label in validation_dataloader:
                 pred = self(batched_graph, batched_graph.ndata['pressure_val'].float().reshape(len(batched_graph.ndata['pressure_val']),1)) #forward computation on the batched graph
+                print(label)
                 num_correct += ((pred>0.5) == label).sum().item()
-                num_tests += label.shape[1]
+                num_tests += (label.shape[0]*label.shape[1])
             print('Test accuracy:', num_correct / num_tests)
 
-
 if __name__=='__main__':
-    net = GCN(1, 10, 5, 2, './graphs')
-    net.train(2)
-    net.save()
+    #Train
+    #net = GCN(1, 10, 5, 1, 'D:\MRP2\graphs')
+    #net.train(2)
+    #net.save()
+    
+    #Evaluate
+    net = GCN.load('./GNN.tar', 1, 10, 5, 1, 'D:\MRP2\graphs')
+    net.evaluation()
