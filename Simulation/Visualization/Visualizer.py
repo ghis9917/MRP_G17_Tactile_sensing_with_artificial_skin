@@ -72,8 +72,7 @@ class Visualizer:
             repeat=True
         )
 
-        anim.save('../out/2D.gif', fps = 30, dpi = 80)
-        plt.show()
+        anim.save('../out/2D.gif', fps = 15, dpi = 80)
 
     def ani_3D(self, animation_heatmap, sensors_map):
         fig = plt.figure()
@@ -110,8 +109,7 @@ class Visualizer:
             repeat=True
         )
 
-        anim.save('../out/3D.gif', fps = 30, dpi = 80)
-        plt.show()
+        anim.save('../out/3D.gif', fps = 15, dpi = 80)
 
     @staticmethod
     def create_xy(heatmap: np.ndarray) -> (np.ndarray, np.ndarray):

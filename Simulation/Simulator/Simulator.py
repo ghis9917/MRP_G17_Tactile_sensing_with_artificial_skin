@@ -46,7 +46,6 @@ class Simulator:
         self.output = self.gen_output(self.input)
         print("Output computed & Data Saved")
 
-
     def show_readings(self) -> None:
         counter = 0
         for out in self.output:
@@ -77,14 +76,15 @@ class Simulator:
         sensors_map = 1 * (sensors_map > 0)
         return HeatMap(w, h, sensors_map)
 
-
     def gen_input(self, num: int) -> List[Input]:
         input_list = []
 
         for i in range(num):
             velocity = np.asarray([
-                [np.random.rand() * Const.MAX_VELOCITY * (1 if 0 > np.random.rand() >= 0.3 else 0 if 0.3 > np.random.rand() >= 0.6 else -1)],
-                [np.random.rand() * Const.MAX_VELOCITY * (1 if 0 > np.random.rand() >= 0.3 else 0 if 0.3 > np.random.rand() >= 0.6 else -1)]
+                [np.random.rand() * Const.MAX_VELOCITY * (
+                    1 if 0 > np.random.rand() >= 0.3 else 0 if 0.3 > np.random.rand() >= 0.6 else -1)],
+                [np.random.rand() * Const.MAX_VELOCITY * (
+                    1 if 0 > np.random.rand() >= 0.3 else 0 if 0.3 > np.random.rand() >= 0.6 else -1)]
             ]) if np.random.rand() > 0.5 else np.asarray([[0], [0]])
             center = np.asarray([
                 [np.random.rand() * self.width],
@@ -94,24 +94,24 @@ class Simulator:
             frames = math.ceil(np.random.rand() * Const.MAX_FRAMES)
             force = np.random.rand() * Const.MAX_FORCE
 
-            simulation_class = Class(
-                shape_size=Const.BIG(shape),
-                movement=abs(np.linalg.norm(velocity)) > 0,  # Velocity vector has a norm higher than 0
-                touch_type=frames > Const.THRESHOLD_PRESS,
-                # If the interaction lasts for more than 3 frames than the touch becomes a "press"
-                dangerous=force > Const.THRESHOLD_DANGEROUS  # Unit is kPa, higher than 90.5 is considered dangerous
-            )
-
-            input_list.append(
-                Input(
-                    shape=Shape(center, force, shape, self.width, self.height),
-                    vel=velocity,
-                    frames=frames,
-                    simulation_class=simulation_class
-                )
-            )
+            input_list.append(self.create_one_input(shape, center, velocity, frames, force))
 
         return input_list
+
+    def create_one_input(self, shape, center, velocity, frames, force):
+        simulation_class = Class(
+            shape_size=Const.BIG(shape),
+            movement=abs(np.linalg.norm(velocity)) > 0,  # Velocity vector has a norm higher than 0
+            touch_type=frames > Const.THRESHOLD_PRESS,
+            # If the interaction lasts for more than 3 frames than the touch becomes a "press"
+            dangerous=force > Const.THRESHOLD_DANGEROUS  # Unit is kPa, higher than 90.5 is considered dangerous
+        )
+        return Input(
+            shape=Shape(center, force, shape, self.width, self.height),
+            vel=velocity,
+            frames=frames,
+            simulation_class=simulation_class
+        )
 
     def gen_output(self, inp: List[Input]) -> List:
         version = Const.DATASET_VERSION
@@ -129,7 +129,7 @@ class Simulator:
         output = []
         pool = mp.Pool(mp.cpu_count())
         for i in range(len(inp)):
-            output = (pool.apply(self.compute_frames, args=(i, inp[i], version)))
+            output.append(pool.apply(self.compute_frames, args=(i, inp[i], version)))
         pool.close()
         t2 = time.time()
 
@@ -145,49 +145,51 @@ class Simulator:
         shape = example.shape
 
         # Compute frames readings
-        for _ in range(example.frames):
-            example.update_frame(np.array([[0], [0]]).astype(float))
-            self.heatmap.nodes = shape.compute_pressure()
+        for i in range(Const.MAX_FRAMES):
+            if i < example.frames:
+                example.update_frame(np.array([[0], [0]]).astype(float))
+                self.heatmap.nodes += shape.compute_pressure()
+
             out.reading.append(self.heatmap.get_heatmap_copy())
             temp = self.heatmap.get_heatmap_copy()
-            self.heatmap.nodes = temp * 0.8
-            example.update_frame()
+            self.heatmap.nodes = temp * 0.5
 
-        # Write frames computed
-        for frame in range(len(out.reading)):
+            if i < example.frames:
+                example.update_frame()
+
             first_part = [
                 str(out.id),
-                frame,
+                i,
                 int(out.simulation_class.big),
                 int(out.simulation_class.moving),
                 int(out.simulation_class.press),
                 int(out.simulation_class.dangerous)
             ]
 
-            second_part = self.get_sensors_readings(out.reading[frame])
+            second_part = self.get_sensors_readings(out.reading[i])
 
             third_part = [out.shape.shape, out.shape.force, np.linalg.norm(example.vel)]
             with open(f'../out/v{version}/dataset.csv', 'a', newline='') as f:
                 writer = csv.writer(f)
                 writer.writerow(first_part + second_part + third_part)
 
-        # Write padding for remaining empty frames
-        for frame in range(Const.MAX_FRAMES - len(out.reading)):
-            first_part = [
-                str(out.id),
-                len(out.reading) + frame,
-                int(out.simulation_class.big),
-                int(out.simulation_class.moving),
-                int(out.simulation_class.press),
-                int(out.simulation_class.dangerous)
-            ]
-
-            second_part = [0 for _ in self.heatmap.sensors]
-
-            third_part = [out.shape.shape, out.shape.force, np.linalg.norm(example.vel)]
-            with open(f'../out/v{version}/dataset.csv', 'a', newline='') as f:
-                writer = csv.writer(f)
-                writer.writerow(first_part + second_part + third_part)
+        # # Write padding for remaining empty frames
+        # for frame in range(Const.MAX_FRAMES - len(out.reading)):
+        #     first_part = [
+        #         str(out.id),
+        #         len(out.reading) + frame,
+        #         int(out.simulation_class.big),
+        #         int(out.simulation_class.moving),
+        #         int(out.simulation_class.press),
+        #         int(out.simulation_class.dangerous)
+        #     ]
+        #
+        #     second_part = [0 for _ in self.heatmap.sensors]
+        #
+        #     third_part = [out.shape.shape, out.shape.force, np.linalg.norm(example.vel)]
+        #     with open(f'../out/v{version}/dataset.csv', 'a', newline='') as f:
+        #         writer = csv.writer(f)
+        #         writer.writerow(first_part + second_part + third_part)
 
         return out
 
@@ -233,7 +235,7 @@ class Simulator:
         for sensor in self.heatmap.sensors:
             prova = np.zeros(shape=self.heatmap.sensors_map.shape)
             for value in sensor.coords:
-                    prova[value[0], value[1]] = 1
+                prova[value[0], value[1]] = 1
             break
 
     def get_sensors_readings(self, frame):
@@ -249,13 +251,13 @@ class Simulator:
         return readings
 
 
-
 if __name__ == "__main__":
     sim = Simulator(
         w=250,
         h=250
     )
     sim.simulate(Const.N_SIMULATIONS)
+    # sim.simulate(1)
     # sim.show_readings()
     # sim.create_database()
     # TODO: Optimize code by saving a map for every single sensor at the beginning in order to vectorize operations
