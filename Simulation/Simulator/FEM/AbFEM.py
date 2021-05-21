@@ -104,7 +104,8 @@ class SkinModel:
                 plat_name = self.plate_matrix[x, y, 0]
 
                 case_name = 'Case 1' #+plat_name[1:]
-                self.fem.Plates[plat_name].pressures.append([force, case_name])
+                # self.fem.Plates[plat_name].pressures.append([force, case_name])
+                self.fem.AddNodeLoad(self.node_matrix[x+1, y+1, 0], 'FZ', force)
 
 
 
@@ -158,7 +159,7 @@ if __name__ == '__main__':
 
     # TODO create method to read in (sequential) images
     inp = cv2.resize(
-        cv2.imread('../input/hand.png', cv2.IMREAD_GRAYSCALE),
+        cv2.imread('../../input/circle blur.png', cv2.IMREAD_GRAYSCALE),
         dsize=(100, 100),
         interpolation=cv2.INTER_CUBIC
     )
