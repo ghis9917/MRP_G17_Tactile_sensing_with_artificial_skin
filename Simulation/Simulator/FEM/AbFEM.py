@@ -26,35 +26,55 @@ class SkinModel:
         self.factors = None
 
     def create_nodes(self, width, height, layers=1, mesh_size=1):
-
+        """
+        Creates nodes based on the specified width and height of the skin divided by the mesh size
+        :param width: Width of the skin sheet
+        :param height: Height of the skin sheet
+        :param layers: Amount of node layers
+        :param mesh_size: Subdivision of the sheet
+        :return: None
+        """
         self.width, self.height = width, height
         self.layers, self.mesh_size = layers, mesh_size
-
+        
+        # Width and height divided by the mesh size to get our node step size
         x_steps = int(width // mesh_size)
         y_steps = int(height // mesh_size)
-
+        
+        # Create a list with each x and y value for the possible nodes
         x_lsp = np.linspace(0, width, x_steps)
         self.xlsp = x_lsp
         y_lsp = np.linspace(0, height, y_steps)
         self.ylsp = y_lsp
-
+        
+        # Creates a 3D array of strings to access the nodes based on their x, y, z location
         layer_vec = ["" for _ in range(self.layers)]
         x_mat = [layer_vec for _ in range(len(self.xlsp))]
         self.node_matrix = np.array([x_mat for _ in range(len(self.ylsp))], dtype=object)
 
-        print(self.node_matrix.shape)
-        for l in range(layers):
+        # For each layer, we construct a combination of possible x and y values
+        for layer in range(layers):
             for x, y in itertools.product(range(len(x_lsp)), range(len(y_lsp))):
                 x_cord = x_lsp[x]
                 y_cord = y_lsp[y]
-                name = 'N' + str(int(x)) + '.' + str(int(y)) + '.' + str(int(l))
-                self.fem.AddNode(name, x_cord, y_cord, l*-20)
-                self.node_name_list.append(name)
-                self.node_matrix[x, y, l] = name
 
-        #self.node_matrix = np.array(self.node_matrix, dtype=object)
+                # Create a node with it's coordinates N{x}.{y}.{z}
+                name = f'N{x}.{y}.{layer}'
+
+                # Add the node to the FEM, a node list and the 3D matrix
+                self.fem.AddNode(name, x_cord, y_cord, layer*-20)
+                self.node_name_list.append(name)
+                self.node_matrix[x, y, layer] = name
+
+        # Convert the node matrix after creation to a numpy array for easy slicing
+        self.node_matrix = np.array(self.node_matrix, dtype=object)
 
     def create_plates(self):
+        """
+        This method creates plates between each combination of four nodes in the existing node matrix,
+        in order to create a 'layer' of the material that we provide for the plates.
+        :return: None
+        """
         if (self.width is None) | (self.height is None) | (self.layers is None):
             raise ValueError("Tried to add plates without nodes")
 
@@ -81,6 +101,13 @@ class SkinModel:
         return self.node_matrix
 
     def input_to_load(self, img, max_force):
+        """
+        Divides the input image in such a way the intensity of the image's values can be translated to pressures
+        on nodes or plates
+        :param img: The input image with white levels indicating the amount of force
+        :param max_force: The image's range [0-255] will be mapped to the force range [0-max_force]
+        :return: None
+        """
         # For now, 100 by 100 input, 10 by 10 nodes -> window = -5 to +5
         # So, for index i the window would be from i*10 to i*10+10
 
@@ -104,8 +131,8 @@ class SkinModel:
                 plat_name = self.plate_matrix[x, y, 0]
 
                 case_name = 'Case 1' #+plat_name[1:]
-                # self.fem.Plates[plat_name].pressures.append([force, case_name])
-                self.fem.AddNodeLoad(self.node_matrix[x+1, y+1, 0], 'FZ', force)
+                #self.fem.Plates[plat_name].pressures.append([force, case_name])
+                self.fem.AddNodeLoad(self.node_matrix[x+1, y+1, 0], 'FZ', -force)
 
 
 
@@ -123,6 +150,11 @@ class SkinModel:
 
 
     def __define_support(self, type="Pinned"):
+        """
+        Sets the nodes on the edges of the skin to be a support, disallowing either movement, rotation or both
+        :param type: Pinned = no movement, Fixed = no movement, no rotation
+        :return: None
+        """
         for l in range(self.layers):
             nodes = []
             nodes.extend(self.node_matrix[:, 0, l])
@@ -141,30 +173,36 @@ class SkinModel:
         return self.fem
 
     def analyse(self):
-        self.__define_support(type='Fixed')
+        self.__define_support(type='Pinned')
 
         self.fem.Analyze(check_statics=True, sparse=True)
 
     def visualise(self):
-        Visualization.RenderModel(self.fem, text_height=0.5, deformed_shape=False, deformed_scale=30,
-                                  render_loads=True, color_map='dz', case=None, combo_name='Combo 1')
+        Visualization.RenderModel(self.fem,
+                                  text_height=0.5,
+                                  deformed_shape=False,
+                                  deformed_scale=30,
+                                  render_loads=True,
+                                  color_map='dz',
+                                  case=None,
+                                  combo_name='Combo 1')
 
 
 if __name__ == '__main__':
     skin_model = SkinModel()
-    skin_model.create_nodes(100, 100, layers=1, mesh_size=5)
+    skin_model.create_nodes(100, 100, layers=2, mesh_size=10)
     skin_model.create_plates()
 
     # TODO normalize dsize to width & height (??)
 
     # TODO create method to read in (sequential) images
     inp = cv2.resize(
-        cv2.imread('../../input/circle blur.png', cv2.IMREAD_GRAYSCALE),
+        cv2.imread('../input/circle blur.png', cv2.IMREAD_GRAYSCALE),
         dsize=(100, 100),
         interpolation=cv2.INTER_CUBIC
     )
 
-    skin_model.input_to_load(inp, 10)
+    skin_model.input_to_load(inp, 100)
     skin_model.analyse()
 
     print()
