@@ -46,6 +46,8 @@ class SkinModel:
         self.xlsp = x_lsp
         y_lsp = np.linspace(0, height, y_steps)
         self.ylsp = y_lsp
+
+        layer_distance = x_steps if x_steps > y_steps else y_steps
         
         # Creates a 3D array of strings to access the nodes based on their x, y, z location
         layer_vec = ["" for _ in range(self.layers)]
@@ -80,20 +82,41 @@ class SkinModel:
 
         shap = self.node_matrix.shape
         self.plate_matrix = np.array([[["" for _ in range(shap[2])] for _ in range(shap[1]-1)] for _ in range(shap[0]-1)], dtype=object)
-        len_layer = self.layers - 1 if self.layers > 1 else 1
-        for l in range(len_layer):
+        len_layer = self.layers # self.layers - 1 if self.layers > 1 else 1
+        for layer in range(len_layer):
             for i, j in itertools.product(range(len(self.xlsp) - 1), range(len(self.ylsp) - 1)):
 
-                n1 = 'N' + str(int(i)) + '.' + str(int(j)) + '.' + str(int(l))
-                n2 = 'N' + str(int(i)) + '.' + str(int(j+1)) + '.' + str(int(l))
-                n3 = 'N' + str(int(i+1)) + '.' + str(int(j)) + '.' + str(int(l))
-                n4 = 'N' + str(int(i+1)) + '.' + str(int(j+1)) + '.' + str(int(l))
+                n1 = 'N' + str(int(i)) + '.' + str(int(j)) + '.' + str(int(layer))
+                n2 = 'N' + str(int(i)) + '.' + str(int(j+1)) + '.' + str(int(layer))
+                n3 = 'N' + str(int(i+1)) + '.' + str(int(j)) + '.' + str(int(layer))
+                n4 = 'N' + str(int(i+1)) + '.' + str(int(j+1)) + '.' + str(int(layer))
 
-                name = 'P' + str(int(i)) + '.' + str(int(j)) + '.' + str(int(l))
+                name = 'P' + str(int(i)) + '.' + str(int(j)) + '.' + str(int(layer))
 
                 self.fem.AddPlate(name, n1, n2, n4, n3, self.t, self.E, self.nu)
 
-                self.plate_matrix[i, j, l] = name
+                self.plate_matrix[i, j, layer] = name
+
+    def connect_layers(self, l0, l1, type='Beam'):
+        """
+        Connect the different layers of nodes with either a 'Beam' or a 'Plate'
+        :param l0: First layer to connect
+        :param l1: Second layer to connect
+        :param type: Beam or Plate
+        :return: None
+        """
+        # If the type is Beam, we can create a 1-1 mapping between the nodes
+        if type == 'Beam':
+            layer_0 = self.node_matrix[:, :, l0].ravel()
+            layer_1 = self.node_matrix[:, :, l1].ravel()
+
+            for id in range(len(layer_0)):
+                n1 = layer_0[id]
+                n2 = layer_1[id]
+
+                self.fem.AddMember(f'M{l0}.{l1}.{id}', n1, n2, 29000, 11400, 100, 150, 250, 20)
+
+
 
     #TODO Look into padding the nodes of the FEM
 
@@ -132,10 +155,7 @@ class SkinModel:
 
                 case_name = 'Case 1' #+plat_name[1:]
                 #self.fem.Plates[plat_name].pressures.append([force, case_name])
-                self.fem.AddNodeLoad(self.node_matrix[x+1, y+1, 0], 'FZ', -force)
-
-
-
+                self.fem.AddNodeLoad(self.node_matrix[x, y, 0], 'FZ', -force)
 
         # for x, y in itertools.product(range(len(self.node_matrix)), range(len(self.node_matrix[0]))):
         #     node_filter = inp[
@@ -146,8 +166,6 @@ class SkinModel:
         #     if avg != 0.0:
         #         force = (avg / 255) * max_force
                 #self.fem.AddNodeLoad(self.node_matrix[x, y, 0], "FZ", -force)
-
-
 
     def __define_support(self, type="Pinned"):
         """
@@ -175,23 +193,30 @@ class SkinModel:
     def analyse(self):
         self.__define_support(type='Pinned')
 
-        self.fem.Analyze(check_statics=True, sparse=True)
+        self.fem.Analyze(check_statics=True, sparse=True, max_iter=30)
 
     def visualise(self):
         Visualization.RenderModel(self.fem,
                                   text_height=0.5,
                                   deformed_shape=False,
-                                  deformed_scale=30,
+                                  deformed_scale=300,
                                   render_loads=True,
                                   color_map='dz',
                                   case=None,
                                   combo_name='Combo 1')
+    
+    def plot_forces(self, force_type):
+
+        breakpoint()
+
 
 
 if __name__ == '__main__':
     skin_model = SkinModel()
-    skin_model.create_nodes(100, 100, layers=2, mesh_size=10)
+    skin_model.create_nodes(100, 100, layers=2, mesh_size=5)
     skin_model.create_plates()
+
+    # skin_model.connect_layers(0, 1)
 
     # TODO normalize dsize to width & height (??)
 
@@ -205,8 +230,14 @@ if __name__ == '__main__':
     skin_model.input_to_load(inp, 100)
     skin_model.analyse()
 
-    print()
-
+    # Plot the shear force contours
+    # skin_model.plot_forces('Qx')
+    # skin_model.plot_forces('Qy')
+    #
+    # # Plot the moment contours
+    # skin_model.plot_forces('Mx')
+    # skin_model.plot_forces('My')
+    # skin_model.plot_forces('Mxy')
     skin_model.visualise()
 
     sys.exit()
