@@ -42,11 +42,11 @@ class Dataset_from_graphs(DGLDataset):
             attrs = ast.literal_eval(json.load(js_file_attr))
             attributes_dict = {}
             for entry in attrs:
-                attributes_dict[entry[0]] = entry[1] # TODO make tensors
+                attributes_dict[entry[0]] = entry[1]  # TODO make tensors
             nx.set_node_attributes(graph_nx, attributes_dict)
 
         # create dgl graph
-        graph = dgl.from_networkx(graph_nx, node_attrs=['feature']) #, edge_attrs=['distance'])
+        graph = dgl.from_networkx(graph_nx, node_attrs=['feature'])  # , edge_attrs=['distance'])
         return graph, self.labels[id]
 
     def __len__(self):
@@ -62,10 +62,10 @@ class Dataset_from_graphs(DGLDataset):
 class Dataset_from_csv(DGLDataset):
     def __init__(self,
                  list_IDs,
-                 #labels,
+                 # labels,
                  path_adj='../Simulation/out/v6/',
-                 path_values = '../Simulation/out/v7/'):
-        #self.labels = labels
+                 path_values='../Simulation/out/v7/'):
+        # self.labels = labels
         self.list_IDs = list_IDs
         self.graphs_list = []
         self.path_adj = path_adj
@@ -74,7 +74,7 @@ class Dataset_from_csv(DGLDataset):
         self.adj = coo_matrix(pd.read_csv(self.path_adj + 'adjacency_matrix.csv').values)
         self.data = pd.read_csv(self.path_values + 'dataset.csv')
         self.graph = dgl.from_scipy(self.adj, 'weight')
-        self.sensors_ids = [f'S{i}' for i in range(40)] # make it automatic
+        self.sensors_ids = [f'S{i}' for i in range(40)]  # make it automatic
 
     def __getitem__(self, i):
         id = self.list_IDs[i]
@@ -91,6 +91,7 @@ class Dataset_from_csv(DGLDataset):
     def __len__(self):
         # Denotes the total number of samples
         return self.dim
+
 
 class GConvNet(nn.Module):
     def __init__(self):
@@ -111,7 +112,7 @@ class GConvNet(nn.Module):
         return torch.sigmoid(self.output(graph)).view(-1)
 
 
-def get_dataloaders():
+def get_dataloaders_from_graph():
     # Parameters
     params = {'batch_size': 1,  # batches merge the nodes in a single graph
               'shuffle': True,
@@ -136,8 +137,8 @@ def get_dataloaders():
 
     # get statistics
     statistics = {
-        'train': {0:0, 1:0},
-        'val': {0:0, 1:0},
+        'train': {0: 0, 1: 0},
+        'val': {0: 0, 1: 0},
         'test': {0: 0, 1: 0}
     }
     for entry in partition['train']:
@@ -153,28 +154,19 @@ def get_dataloaders():
     validation_set = Dataset_from_graphs(partition['validation'], labels)
     test_set = Dataset_from_graphs(ids_test, labels)
 
-    return GraphDataLoader(training_set, **params),\
-           GraphDataLoader(validation_set, **params),\
+    return GraphDataLoader(training_set, **params), \
+           GraphDataLoader(validation_set, **params), \
            GraphDataLoader(test_set, **params)
 
 
-if __name__ == '__main__':
-    # adj = pd.read_csv('../Simulation/out/v6/adjacency_matrix.csv')
-    data = pd.read_csv('../Simulation/out/v7/dataset.csv')
-    # scy = coo_matrix(adj.values)
-    # print(scy)
-    # g = dgl.from_scipy(scy, 'weight')
-    # print(g)
-    #
-    # ids = [f'S{i}' for i in range(40)]
-    # sensors = torch.Tensor(data[ids].values.T)
-    # print(sensors.shape)
-    # g.ndata['feature'] = sensors
-    # print(g)
+def get_dataloaders_from_csv():
     # Parameters
     params = {'batch_size': 1,  # batches merge the nodes in a single graph
               'shuffle': True,
               'num_workers': 1}
+
+    data = pd.read_csv('../Simulation/out/v7/dataset.csv')
+
     n_gestures = data['id'].iloc[-1]
 
     # shuffle and divide
@@ -192,9 +184,14 @@ if __name__ == '__main__':
     validation_set = Dataset_from_csv(partition['validation'])
     test_set = Dataset_from_csv(ids_test)
 
-    for i in training_set:
-        print('-')
+    return GraphDataLoader(training_set, **params), \
+           GraphDataLoader(validation_set, **params), \
+           GraphDataLoader(test_set, **params)
+
+
+if __name__ == '__main__':
+    training_set, val, test = get_dataloaders_from_csv()
+    for c, i in enumerate(training_set):
+        print(i)
         exit()
-
-
-
+    print('finish', c)
