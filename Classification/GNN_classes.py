@@ -95,8 +95,10 @@ class Dataset_from_csv(DGLDataset):
                 break
         fp = self.data.loc[self.data['id'] == id]
         for start, end in windows:
-            # pad last window?
             sensors = torch.Tensor(fp[self.sensors_ids].values[start:end].T)
+            if sensors.shape[1] < self.window_size:
+                pad = torch.zeros((40, self.window_size - sensors.shape[1]))
+                sensors = torch.cat((sensors, pad), axis=1)
             g = copy.deepcopy(self.graph)
             g.ndata['feature'] = sensors
             graph_list.append(g)
@@ -107,6 +109,7 @@ class Dataset_from_csv(DGLDataset):
     def __len__(self):
         # Denotes the total number of samples
         return self.dim
+
 
 class GConvNetSimple(nn.Module):
     def __init__(self):
@@ -126,16 +129,28 @@ class GConvNetSimple(nn.Module):
         # return self.output(graph).view(-1)
         return torch.sigmoid(self.output(graph)).view(-1)
 
+
 class GConvNet(nn.Module):
-    def __init__(self):
+    def __init__(self, windows, features):
         super().__init__()
         self.GCN_layers = nn.ModuleList()
-        self.GCN_layers.append(GraphConv(10, 8))
+        self.GCN_layers.append(GraphConv(features, 8))
+        self.GCN_layers.append(GraphConv(8, 16))
+        self.temporal_layer = nn.LSTM(16, 8)
         self.output = nn.Linear(8, 4)
 
     def forward(self, graphs):
-        # TODO ghraphs is a list, go over each graph and get embedding for lstm
-        return
+        convolutions = []
+        for graph in graphs:
+            h = graph.ndata['feature'].float()
+            for layer in self.GCN_layers:
+                h = F.relu(layer(graph, h))
+            convolutions.append(h)
+        input_features = torch.stack(convolutions)
+        out = self.temporal_layer(input_features)[0]
+        graph.ndata['feature'] = out[-1]
+        x = dgl.max_nodes(graph, 'feature')
+        return torch.sigmoid(self.output(x))
 
 def get_dataloaders_from_graph():
     # Parameters
@@ -182,6 +197,7 @@ def get_dataloaders_from_graph():
     return GraphDataLoader(training_set, **params), \
            GraphDataLoader(validation_set, **params), \
            GraphDataLoader(test_set, **params)
+
 
 def get_dataloaders_from_csv(window_size=5, stride_frac=2/3):
     # Parameters
@@ -251,12 +267,12 @@ class GConvNetBigGraph(nn.Module):
         train_dataloader, validation_dataloader, test_dataloader = get_dataloaders_from_csv(window_size=self.window_size,stride_frac=self.stride_frac)
         num_train = train_dataloader.__len__()
 
-        ## Training phase ## 
+        ## Training phase ##
         acc_history = []
         best_acc = 0
         for epoch in range(epochs):
             print('Epoch ', epoch+1, 'of ', epochs)
-            ex = 0 
+            ex = 0
             for batched_graph, label in train_dataloader:
                 batched_graph = batched_graph[0]
                 pred = model(batched_graph,batched_graph.ndata['feature'].float()) #forward computation on the batched graph
@@ -280,7 +296,7 @@ class GConvNetBigGraph(nn.Module):
             if (acc>best_acc):
                 best_acc = acc
                 self.save()
-        
+
         ## Save the accuracy/epochs report ##
         with open('./logfile.txt','w') as fp:
             fp.write(json.dumps(acc_history))
@@ -317,4 +333,3 @@ if __name__ == '__main__':
     plt.show()
     model_best = GConvNetBigGraph.load('./GNN_BG.tar')
     model_best.evaluation()
-    
