@@ -61,12 +61,13 @@ class Dataset_from_graphs(DGLDataset):
 class Dataset_from_csv(DGLDataset):
     def __init__(self,
                  list_IDs,
-                 # labels,
+                 window_size=5,
+                 frames=30,
                  path_adj='../Simulation/out/v6/',
                  path_values='../Simulation/out/v7/'):
-        # self.labels = labels
         self.list_IDs = list_IDs
-        self.graphs_list = []
+        self.window_size = window_size
+        self.frames_x_gesture = frames
         self.path_adj = path_adj
         self.path_values = path_values
         self.dim = len(self.list_IDs)
@@ -77,21 +78,32 @@ class Dataset_from_csv(DGLDataset):
 
     def __getitem__(self, i):
         id = self.list_IDs[i]
-        print('getitem')
+        print(id)
+        graph_list = []
+        windows = []
+        start = 0
+        while True:
+            windows.append((start, start + self.window_size))
+            start += int(self.window_size - (self.window_size / 3))
+            if start + self.window_size > self.frames_x_gesture:
+                windows.append((start, self.frames_x_gesture))
+                break
         fp = self.data.loc[self.data['id'] == id]
-        sensors = torch.Tensor(fp[self.sensors_ids].values.T)
-        g = copy.deepcopy(self.graph)
-        g.ndata['feature'] = sensors
-        self.graphs_list.append(g)
-        labels = torch.Tensor(fp.iloc[0][2:6].values.astype('float'))
-        
-        return g, labels
+        for start, end in windows:
+            # pad last window?
+            sensors = torch.Tensor(fp[self.sensors_ids].values[start:end].T)
+            g = copy.deepcopy(self.graph)
+            g.ndata['feature'] = sensors
+            graph_list.append(g)
+        labels = torch.Tensor(fp.iloc[0][2:6].values.astype(float))
+        return graph_list,  labels
 
     def __len__(self):
         # Denotes the total number of samples
         return self.dim
 
-class GConvNet(nn.Module):
+
+class GConvNetSimple(nn.Module):
     def __init__(self):
         super().__init__()
         self.GCN_layers = nn.ModuleList()
@@ -108,6 +120,19 @@ class GConvNet(nn.Module):
         graph = dgl.mean_nodes(graph, 'feature')
         # return self.output(graph).view(-1)
         return torch.sigmoid(self.output(graph)).view(-1)
+
+
+class GConvNet(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.GCN_layers = nn.ModuleList()
+        self.GCN_layers.append(GraphConv(10, 8))
+        self.output = nn.Linear(8, 4)
+
+    def forward(self, graphs):
+        # TODO ghraphs is a list, go over each graph and get embedding for lstm
+        return
+
 
 def get_dataloaders_from_graph():
     # Parameters
