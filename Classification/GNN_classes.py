@@ -235,7 +235,7 @@ class GConvNetBigGraph(nn.Module):
         #define a NN structure using GDL and Torch layers
         x = self.conv1(graphs, features)
         graphs.ndata['h'] = x
-        x = dgl.mean_nodes(graphs, 'h')
+        x = dgl.max_nodes(graphs, 'h')
         x = self.hidden(x)
         x = self.acthidden(x)
         x = self.output(x)
@@ -253,6 +253,7 @@ class GConvNetBigGraph(nn.Module):
 
         ## Training phase ## 
         acc_history = []
+        best_acc = 0
         for epoch in range(epochs):
             print('Epoch ', epoch+1, 'of ', epochs)
             ex = 0 
@@ -273,48 +274,46 @@ class GConvNetBigGraph(nn.Module):
                 pred = model(batched_graph, batched_graph.ndata['feature'].float()) #forward computation on the batched graph
                 num_correct += ((pred>0.5) == label).sum().item()
                 num_tests += (label.shape[0]*label.shape[1])
-            acc_history.append(num_correct / num_tests)
-            print('Test of overall accuracy: ', num_correct / num_tests)
+            acc = num_correct / num_tests
+            acc_history.append(acc)
+            print('Test of overall accuracy: ', acc)
+            if (acc>best_acc):
+                best_acc = acc
+                self.save()
         
         ## Save the accuracy/epochs report ##
         with open('./logfile.txt','w') as fp:
             fp.write(json.dumps(acc_history))
             print('### Log salvato ###')
-        
-        print('### Evaluation of the network ###')
-        #calculate the accuracy on test set and print
-        num_correct = 0; num_tests = 0
-        for batched_graph, label in validation_dataloader:
-            batched_graph = batched_graph[0]
-            pred = model(batched_graph, batched_graph.ndata['feature'].float()) #forward computation on the batched graph
-            num_correct += ((pred>0.5) == label).sum().item()
-            num_tests += (label.shape[0]*label.shape[1])
-        acc_history.append(num_correct / num_tests)
-        print('Evaluation of overall accuracy: ', num_correct / num_tests)
-
 
         return acc_history
 
     def evaluation(self):
-        self.dataset = MyDataset(self.path)
-        num_examples = self.dataset.__len__()
-        num_train = int(num_examples * 0.5)
+        train_dataloader, validation_dataloader, test_dataloader = get_dataloaders_from_csv(window_size=self.window_size,stride_frac=self.stride_frac)
+        print('### Evaluation of the network ###')
+        #calculate the accuracy on test set and print
+        num_correct = 0; num_tests = 0
+        for batched_graph, label in test_dataloader:
+            batched_graph = batched_graph[0]
+            pred = model(batched_graph, batched_graph.ndata['feature'].float()) #forward computation on the batched graph
+            num_correct += ((pred>0.5) == label).sum().item()
+            num_tests += (label.shape[0]*label.shape[1])
+        print('Evaluation of overall accuracy: ', num_correct / num_tests)
 
-        validation_sampler = SubsetRandomSampler(torch.arange(num_train))
-        validation_dataloader = GraphDataLoader(self.dataset, sampler=validation_sampler, batch_size=20, drop_last=False)
+    def save(self, file='GNN_BG.tar'):
+        torch.save(self.state_dict(), file)
 
-        with torch.no_grad():
-            num_correct = 0; num_tests = 0
-            for batched_graph, label in validation_dataloader:
-                pred = self(batched_graph, batched_graph.ndata['pressure_val'].float().reshape(len(batched_graph.ndata['pressure_val']),1)) #forward computation on the batched graph
-                print(label)
-                num_correct += ((pred>0.5) == label).sum().item()
-                num_tests += (label.shape[0]*label.shape[1])
-            print('Test accuracy:', num_correct / num_tests)
+    def load(file):
+        model = GConvNetBigGraph()
+        model.load_state_dict(torch.load(file))
+        return model
 
 
 if __name__ == '__main__':
     model = GConvNetBigGraph()
-    acc_hist = model.train(epochs=2)
+    acc_hist = model.train(epochs=3)
     plt.plot(acc_hist)
     plt.show()
+    model_best = GConvNetBigGraph.load('./GNN_BG.tar')
+    model_best.evaluation()
+    
