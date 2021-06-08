@@ -306,12 +306,13 @@ class GConvNetBigGraph(nn.Module):
     def load(file):
         model = GConvNetBigGraph()
         model.load_state_dict(torch.load(file))
+        print('### Model loaded ###')
         return model
 
 
 if __name__ == '__main__':
     model = GConvNetBigGraph()
-    acc_hist = model.train(epochs=3)
+    acc_hist = model.train(epochs=40)
     plt.plot(acc_hist)
     plt.show()
     model_best = GConvNetBigGraph.load('./GNN_BG.tar')
