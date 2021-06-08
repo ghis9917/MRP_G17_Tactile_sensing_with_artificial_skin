@@ -58,7 +58,6 @@ class Dataset_from_graphs(DGLDataset):
         """Number of labels for each graph, i.e. number of prediction tasks."""
         return 2
 
-
 class Dataset_from_csv(DGLDataset):
     def __init__(self,
                  list_IDs,
@@ -78,20 +77,19 @@ class Dataset_from_csv(DGLDataset):
 
     def __getitem__(self, i):
         id = self.list_IDs[i]
-        print(id)
+        print('getitem')
         fp = self.data.loc[self.data['id'] == id]
         sensors = torch.Tensor(fp[self.sensors_ids].values.T)
         g = copy.deepcopy(self.graph)
         g.ndata['feature'] = sensors
         self.graphs_list.append(g)
-        labels = fp.iloc[0][2:6].values
-        print(labels)
-        return self.graphs_list, labels
+        labels = torch.Tensor(fp.iloc[0][2:6].values.astype('float'))
+        
+        return g, labels
 
     def __len__(self):
         # Denotes the total number of samples
         return self.dim
-
 
 class GConvNet(nn.Module):
     def __init__(self):
@@ -110,7 +108,6 @@ class GConvNet(nn.Module):
         graph = dgl.mean_nodes(graph, 'feature')
         # return self.output(graph).view(-1)
         return torch.sigmoid(self.output(graph)).view(-1)
-
 
 def get_dataloaders_from_graph():
     # Parameters
@@ -147,7 +144,7 @@ def get_dataloaders_from_graph():
         statistics['val'][labels[entry]] += 1
     for entry in ids_test:
         statistics['test'][labels[entry]] += 1
-    print(statistics)
+    #print(statistics)
 
     # generators
     training_set = Dataset_from_graphs(partition['train'], labels)
@@ -157,7 +154,6 @@ def get_dataloaders_from_graph():
     return GraphDataLoader(training_set, **params), \
            GraphDataLoader(validation_set, **params), \
            GraphDataLoader(test_set, **params)
-
 
 def get_dataloaders_from_csv():
     # Parameters
@@ -190,8 +186,9 @@ def get_dataloaders_from_csv():
 
 
 if __name__ == '__main__':
-    training_set, val, test = get_dataloaders_from_csv()
-    for c, i in enumerate(training_set):
-        print(i)
-        exit()
-    print('finish', c)
+    #training_set, val, test = get_dataloaders_from_csv()
+    #for c, i in enumerate(training_set):
+    #    print(i)
+    #    exit()
+    #print('finish', c)
+    pass

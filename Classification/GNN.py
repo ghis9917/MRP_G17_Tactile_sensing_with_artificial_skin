@@ -7,13 +7,14 @@ from dgl.nn import GraphConv
 from dgl.data import DGLDataset
 from dgl.nn.pytorch.conv import RelGraphConv
 import pandas as pd
-from graph_creation import read_graphs, read_graph
+#from graph_creation import read_graphs, read_graph
 import os
 from torch.utils.data.sampler import SubsetRandomSampler
 import torch.utils.data as data
 from torch.utils.data import DataLoader
 from dgl.dataloading.pytorch import GraphDataLoader
 import json
+from GNN_classes import *
 
 ## Initial settings ##
 SET_SEED=11
@@ -101,6 +102,7 @@ class GCN(nn.Module):
         optimizer = torch.optim.Adam(model.parameters(), lr=lr) #choose an optimizer
         loss = nn.BCELoss()
         ## Configuring the DataLoader ##
+        """
         self.dataset = MyDataset(self.path)
         num_examples = self.dataset.__len__()
         num_train = int(num_examples * test_rate)
@@ -112,6 +114,8 @@ class GCN(nn.Module):
         
         train_dataloader = GraphDataLoader(self.dataset, sampler=train_sampler, batch_size=batch_size, drop_last=False)
         test_dataloader = GraphDataLoader(self.dataset, sampler=test_sampler, batch_size=batch_size, drop_last=False)
+        """
+        train_dataloader, validation_dataloader, test_dataloader = get_dataloaders_from_csv()
 
         ## Training phase ## 
         acc_history = []
