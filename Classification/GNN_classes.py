@@ -15,6 +15,7 @@ from dgl.dataloading import GraphDataLoader
 import random
 import torch
 import copy
+import matplotlib.pyplot as plt
 
 
 class Dataset_from_graphs(DGLDataset):
@@ -33,7 +34,7 @@ class Dataset_from_graphs(DGLDataset):
         # generates one sample of data
         # Select sample
         id = self.list_IDs[i]
-        print(id)
+        #print(id)
 
         # Load data and get label
         with open(self.path_graphs + id, 'r') as js_file_graph:
@@ -80,7 +81,7 @@ class Dataset_from_csv(DGLDataset):
 
     def __getitem__(self, i):
         id = self.list_IDs[i]
-        print(id)
+        #print(id)
         graph_list = []
         windows = []
         start = 0
@@ -135,7 +136,6 @@ class GConvNet(nn.Module):
     def forward(self, graphs):
         # TODO ghraphs is a list, go over each graph and get embedding for lstm
         return
-
 
 def get_dataloaders_from_graph():
     # Parameters
@@ -212,11 +212,109 @@ def get_dataloaders_from_csv(window_size=5, stride_frac=2/3):
            GraphDataLoader(validation_set, **params), \
            GraphDataLoader(test_set, **params)
 
+class GConvNetBigGraph(nn.Module):
+    def __init__(self,
+                window_size = 30,
+                stride_frac = 1):
+        super().__init__()
+
+        self.window_size = window_size
+        self.stride_frac = stride_frac
+
+        hidden1 = 30
+        hidden2 = 10
+        output = 4
+
+        self.conv1 = GraphConv(window_size, hidden1)
+        self.hidden = nn.Linear(in_features=hidden1, out_features=hidden2, bias=True)
+        self.acthidden = nn.ReLU()
+        self.output = nn.Linear(in_features=hidden2, out_features=output, bias=True)
+        self.actout = nn.Sigmoid()
+
+    def forward(self, graphs, features):
+        #define a NN structure using GDL and Torch layers
+        x = self.conv1(graphs, features)
+        graphs.ndata['h'] = x
+        x = dgl.mean_nodes(graphs, 'h')
+        x = self.hidden(x)
+        x = self.acthidden(x)
+        x = self.output(x)
+        x = self.actout(x)
+        return x
+
+    def train(self, epochs=2, lr=0.01, test_rate=0.8):
+        model = self #create a model
+        optimizer = torch.optim.Adam(model.parameters(), lr=lr) #choose an optimizer
+        loss = nn.BCELoss()
+        ## Configuring the DataLoader ##
+        batch_size = 1
+        train_dataloader, validation_dataloader, test_dataloader = get_dataloaders_from_csv(window_size=self.window_size,stride_frac=self.stride_frac)
+        num_train = train_dataloader.__len__()
+
+        ## Training phase ## 
+        acc_history = []
+        for epoch in range(epochs):
+            print('Epoch ', epoch+1, 'of ', epochs)
+            ex = 0 
+            for batched_graph, label in train_dataloader:
+                batched_graph = batched_graph[0]
+                pred = model(batched_graph,batched_graph.ndata['feature'].float()) #forward computation on the batched graph
+                J = loss(pred, label) #calculate the cost function
+                optimizer.zero_grad() #set the gradients to zero
+                J.backward()
+                optimizer.step() #backpropagate
+                print(ex,' / ',num_train)
+                ex += batch_size
+
+            #calculate the accuracy on test set and print
+            num_correct = 0; num_tests = 0
+            for batched_graph, label in test_dataloader:
+                batched_graph = batched_graph[0]
+                pred = model(batched_graph, batched_graph.ndata['feature'].float()) #forward computation on the batched graph
+                num_correct += ((pred>0.5) == label).sum().item()
+                num_tests += (label.shape[0]*label.shape[1])
+            acc_history.append(num_correct / num_tests)
+            print('Test of overall accuracy: ', num_correct / num_tests)
+        
+        ## Save the accuracy/epochs report ##
+        with open('./logfile.txt','w') as fp:
+            fp.write(json.dumps(acc_history))
+            print('### Log salvato ###')
+        
+        print('### Evaluation of the network ###')
+        #calculate the accuracy on test set and print
+        num_correct = 0; num_tests = 0
+        for batched_graph, label in validation_dataloader:
+            batched_graph = batched_graph[0]
+            pred = model(batched_graph, batched_graph.ndata['feature'].float()) #forward computation on the batched graph
+            num_correct += ((pred>0.5) == label).sum().item()
+            num_tests += (label.shape[0]*label.shape[1])
+        acc_history.append(num_correct / num_tests)
+        print('Evaluation of overall accuracy: ', num_correct / num_tests)
+
+
+        return acc_history
+
+    def evaluation(self):
+        self.dataset = MyDataset(self.path)
+        num_examples = self.dataset.__len__()
+        num_train = int(num_examples * 0.5)
+
+        validation_sampler = SubsetRandomSampler(torch.arange(num_train))
+        validation_dataloader = GraphDataLoader(self.dataset, sampler=validation_sampler, batch_size=20, drop_last=False)
+
+        with torch.no_grad():
+            num_correct = 0; num_tests = 0
+            for batched_graph, label in validation_dataloader:
+                pred = self(batched_graph, batched_graph.ndata['pressure_val'].float().reshape(len(batched_graph.ndata['pressure_val']),1)) #forward computation on the batched graph
+                print(label)
+                num_correct += ((pred>0.5) == label).sum().item()
+                num_tests += (label.shape[0]*label.shape[1])
+            print('Test accuracy:', num_correct / num_tests)
+
 
 if __name__ == '__main__':
-    #training_set, val, test = get_dataloaders_from_csv()
-    #for c, i in enumerate(training_set):
-    #    print(i)
-    #    exit()
-    #print('finish', c)
-    pass
+    model = GConvNetBigGraph()
+    acc_hist = model.train(epochs=2)
+    plt.plot(acc_hist)
+    plt.show()

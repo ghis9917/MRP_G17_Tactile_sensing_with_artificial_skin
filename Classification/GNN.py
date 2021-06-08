@@ -102,19 +102,6 @@ class GCN(nn.Module):
         optimizer = torch.optim.Adam(model.parameters(), lr=lr) #choose an optimizer
         loss = nn.BCELoss()
         ## Configuring the DataLoader ##
-        """
-        self.dataset = MyDataset(self.path)
-        num_examples = self.dataset.__len__()
-        num_train = int(num_examples * test_rate)
-
-        train_sampler = SubsetRandomSampler(torch.arange(num_train))
-        test_sampler = SubsetRandomSampler(torch.arange(num_train, num_examples))
-
-        batch_size = 20
-        
-        train_dataloader = GraphDataLoader(self.dataset, sampler=train_sampler, batch_size=batch_size, drop_last=False)
-        test_dataloader = GraphDataLoader(self.dataset, sampler=test_sampler, batch_size=batch_size, drop_last=False)
-        """
         batch_size = 20
         train_dataloader, validation_dataloader, test_dataloader = get_dataloaders_from_csv(window_size=30,stride_frac=2)
         num_train = train_dataloader.__len__()
@@ -125,7 +112,8 @@ class GCN(nn.Module):
             print('Epoch ', epoch+1, 'of ', epochs)
             ex = 0 
             for batched_graph, label in train_dataloader:
-                pred = model(batched_graph,batched_graph.ndata['pressure_val'].float().reshape(len(batched_graph.ndata['pressure_val']),1)) #forward computation on the batched graph
+                batched_graph = batched_graph[0]
+                pred = model(batched_graph, batched_graph.ndata['feature'].float()) #forward computation on the batched graph
                 J = loss(pred, label) #calculate the cost function
                 optimizer.zero_grad() #set the gradients to zero
                 J.backward()
@@ -136,7 +124,7 @@ class GCN(nn.Module):
             #calculate the accuracy on test set and print
             num_correct = 0; num_tests = 0
             for batched_graph, label in test_dataloader:
-                pred = model(batched_graph, batched_graph.ndata['pressure_val'].float().reshape(len(batched_graph.ndata['pressure_val']),1)) #forward computation on the batched graph
+                pred = model(batched_graph, batched_graph.ndata['feature'].float().reshape(len(batched_graph.ndata['feature']),1)) #forward computation on the batched graph
                 num_correct += ((pred>0.5) == label).sum().item()
                 num_tests += (label.shape[0]*label.shape[1])
             acc_history.append(num_correct / num_tests)
