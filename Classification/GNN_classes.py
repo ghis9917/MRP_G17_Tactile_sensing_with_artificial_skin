@@ -62,6 +62,7 @@ class Dataset_from_csv(DGLDataset):
     def __init__(self,
                  list_IDs,
                  window_size=5,
+                 stride_frac = 2/3,
                  frames=30,
                  path_adj='../Simulation/out/v6/',
                  path_values='../Simulation/out/v7/'):
@@ -75,6 +76,7 @@ class Dataset_from_csv(DGLDataset):
         self.data = pd.read_csv(self.path_values + 'dataset.csv')
         self.graph = dgl.from_scipy(self.adj, 'weight')
         self.sensors_ids = [f'S{i}' for i in range(40)]  # make it automatic
+        self.stride_frac = stride_frac #stride fraction
 
     def __getitem__(self, i):
         id = self.list_IDs[i]
@@ -84,7 +86,9 @@ class Dataset_from_csv(DGLDataset):
         start = 0
         while True:
             windows.append((start, start + self.window_size))
-            start += int(self.window_size - (self.window_size / 3))
+            start += int(self.stride_frac * self.window_size)
+            if start >= self.frames_x_gesture:
+                break
             if start + self.window_size > self.frames_x_gesture:
                 windows.append((start, self.frames_x_gesture))
                 break
@@ -95,13 +99,13 @@ class Dataset_from_csv(DGLDataset):
             g = copy.deepcopy(self.graph)
             g.ndata['feature'] = sensors
             graph_list.append(g)
+
         labels = torch.Tensor(fp.iloc[0][2:6].values.astype(float))
         return graph_list,  labels
 
     def __len__(self):
         # Denotes the total number of samples
         return self.dim
-
 
 class GConvNetSimple(nn.Module):
     def __init__(self):
@@ -120,7 +124,6 @@ class GConvNetSimple(nn.Module):
         graph = dgl.mean_nodes(graph, 'feature')
         # return self.output(graph).view(-1)
         return torch.sigmoid(self.output(graph)).view(-1)
-
 
 class GConvNet(nn.Module):
     def __init__(self):
@@ -180,7 +183,7 @@ def get_dataloaders_from_graph():
            GraphDataLoader(validation_set, **params), \
            GraphDataLoader(test_set, **params)
 
-def get_dataloaders_from_csv():
+def get_dataloaders_from_csv(window_size=5, stride_frac=2/3):
     # Parameters
     params = {'batch_size': 1,  # batches merge the nodes in a single graph
               'shuffle': True,
@@ -201,9 +204,9 @@ def get_dataloaders_from_csv():
     partition = {'train': ids_train[:val_stop], 'validation': ids_train[val_stop:]}
 
     # generators
-    training_set = Dataset_from_csv(partition['train'])
-    validation_set = Dataset_from_csv(partition['validation'])
-    test_set = Dataset_from_csv(ids_test)
+    training_set = Dataset_from_csv(partition['train'], window_size=window_size, stride_frac=stride_frac)
+    validation_set = Dataset_from_csv(partition['validation'], window_size=window_size, stride_frac=stride_frac)
+    test_set = Dataset_from_csv(ids_test, window_size=window_size, stride_frac=stride_frac)
 
     return GraphDataLoader(training_set, **params), \
            GraphDataLoader(validation_set, **params), \

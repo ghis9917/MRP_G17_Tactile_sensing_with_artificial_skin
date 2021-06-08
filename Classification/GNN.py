@@ -115,7 +115,9 @@ class GCN(nn.Module):
         train_dataloader = GraphDataLoader(self.dataset, sampler=train_sampler, batch_size=batch_size, drop_last=False)
         test_dataloader = GraphDataLoader(self.dataset, sampler=test_sampler, batch_size=batch_size, drop_last=False)
         """
-        train_dataloader, validation_dataloader, test_dataloader = get_dataloaders_from_csv()
+        batch_size = 20
+        train_dataloader, validation_dataloader, test_dataloader = get_dataloaders_from_csv(window_size=30,stride_frac=2)
+        num_train = train_dataloader.__len__()
 
         ## Training phase ## 
         acc_history = []
@@ -164,10 +166,10 @@ class GCN(nn.Module):
 
 if __name__=='__main__':
     #Train
-    #net = GCN(1, 10, 5, 1, 'D:\MRP2\graphs')
-    #net.train(2)
+    net = GCN(1, 10, 5, 1, 'D:\MRP2\graphs')
+    net.train(2)
     #net.save()
     
     #Evaluate
-    net = GCN.load('./GNN.tar', 1, 10, 5, 1, 'D:\MRP2\graphs')
+    #net = GCN.load('./GNN.tar', 1, 10, 5, 1, 'D:\MRP2\graphs')
     net.evaluation()
