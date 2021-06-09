@@ -74,6 +74,7 @@ class SkinModel:
         # Convert the node matrix after creation to a numpy array for easy slicing
         self.node_matrix = np.array(self.node_matrix, dtype=object)
 
+    # TODO Add parameter to specify which layer gets plates and what their properties are
     def create_plates(self):
         """
         This method creates plates between each combination of four nodes in the existing node matrix,
@@ -101,6 +102,7 @@ class SkinModel:
 
                 self.plate_matrix[i, j, layer] = name
 
+    # TODO Add parameters to specify the beam properties
     def connect_layers(self, l0, l1, type='Beam'):
         """
         Connect the different layers of nodes with either a 'Beam' or a 'Plate'
@@ -274,7 +276,6 @@ class SkinModel:
         elif loc == 'Side':
             pass
 
-
     def get_model(self):
         return self.fem
 
@@ -288,7 +289,7 @@ class SkinModel:
                                   text_height=0.5,
                                   deformed_shape=False,
                                   deformed_scale=300,
-                                  render_loads=True,
+                                  render_loads=False,
                                   color_map='dz',
                                   case=None,
                                   combo_name='Combo 1')
@@ -304,18 +305,20 @@ class SkinModel:
         if disp == 'DZ':
             return node.DZ
 
-    def get_all_displacements(self):
+    def get_all_displacements(self, depth=1):
         xsize = self.node_matrix.shape[0]
         ysize = self.node_matrix.shape[1]
         displacement_mat = np.zeros(shape=(xsize, ysize))
         for i, j in itertools.product(range(xsize), range(ysize)):
-            t_name = self.node_matrix[i, j]
-            tmp_dz = self.fem.Nodes[t_name].DZ
+            t_name = self.node_matrix[i, j, depth]
+            tmp_dz = list(self.fem.Nodes[t_name].DZ.values())[0]
+
+            print(tmp_dz)
             displacement_mat[i, j] = tmp_dz
         return displacement_mat
 
 
-def run_fem(image, max_force=100, mesh_size=5.0, layers=2, vis=True):
+def run_fem(image, max_force=10, mesh_size=5.0, layers=2, vis=True):
     """
     Runs a single instance of the FEM with an image as input
 
@@ -333,19 +336,23 @@ def run_fem(image, max_force=100, mesh_size=5.0, layers=2, vis=True):
     tmp_skin.create_nodes(size[0], size[1], layers, mesh_size)
     tmp_skin.create_plates()
 
+    # TODO Put definition of layer support in separate method
     if layers > 1:
         for layer in range(layers):
             if layer > 0:
                 tmp_skin.connect_layers(layer-1, layer, type='Beam')
-            tmp_skin.define_layer_support(tmp_skin.get_node_mat()[:, :, layer], support=('DX', 'DY'))
+            if layer == layers-1:
+                tmp_skin.define_layer_support(tmp_skin.get_node_mat()[:, :, layer], support=('Fixed',))
+            else:
+                tmp_skin.define_layer_support(tmp_skin.get_node_mat()[:, :, layer], support=('DX', 'DY'))
 
     tmp_skin.input_to_load(image, max_force)
     tmp_skin.analyse()
 
+    displacement = tmp_skin.get_all_displacements()
+
     if vis:
         tmp_skin.visualise()
-
-    displacement = tmp_skin.get_all_displacements()
 
     return displacement
 
@@ -418,6 +425,6 @@ if __name__ == '__main__':
         sequential_fem(images, layers=1, mesh_size=ms, vis=True)
     else:
         # Process single image
-        run_fem(images[-1], layers=5, max_force=1000, mesh_size=ms, vis=True)
+        run_fem(images[-1], layers=5, max_force=100, mesh_size=ms, vis=True)
 
     sys.exit()
