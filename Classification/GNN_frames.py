@@ -79,8 +79,8 @@ def training(train_loader, val_loader, device, windows, features):
 
             # print statistics
             running_loss += loss.detach().item()  # loss.item() returns the average loss for each sample within the batch
-            if i % 2000 == 1999:  # print every 2000 mini-batches
-                print(f'[{epoch}, {i + 1}] loss: {running_loss / 2000}')
+            if i % 1504 == 1503:  # print every 2000 mini-batches
+                print(f'[{epoch}, {i + 1}] loss: {running_loss / 1054}')
                 epoch_loss += running_loss
                 running_loss = 0.0
 
@@ -96,11 +96,11 @@ def training(train_loader, val_loader, device, windows, features):
         for i, data in enumerate(val_loader, 0):
             # Get inputs
             graph, target = data
-            graph = graph.to(device)
+            graph = [graph.to(device) for graph in graphs]
             target = target.to(torch.float32).to(device)
 
             # Generate outputs
-            output = model(graph, graph.ndata['feature'])
+            output = model(graph)
             # prediction = torch.round(torch.sigmoid(output))
 
             # Compute loss
