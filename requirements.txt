@@ -36,6 +36,7 @@ scipy==1.6.2
 six==1.15.0
 tornado==6.1
 traitlets==5.0.5
+tqdm
 typing-extensions==3.7.4.3
 vtk==9.0.1
 wcwidth==0.2.5
