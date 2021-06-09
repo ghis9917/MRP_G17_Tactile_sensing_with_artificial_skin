@@ -5,7 +5,7 @@ import numpy as np
 import PIL.Image as Image
 
 from Sensors import Sensor
-import Utils.Constants as Const
+import Simulation.Utils.Constants as Const
 
 
 class HeatMap:

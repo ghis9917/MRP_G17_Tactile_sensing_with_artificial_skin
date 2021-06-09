@@ -6,7 +6,7 @@ from matplotlib import cm, animation
 import matplotlib.pyplot as plt
 import numpy as np
 from PIL import Image
-import Utils.Constants as Const
+import Simulation.Utils.Constants as Const
 
 
 class Visualizer:
