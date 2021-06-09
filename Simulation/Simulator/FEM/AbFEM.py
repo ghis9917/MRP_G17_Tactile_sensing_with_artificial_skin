@@ -312,8 +312,6 @@ class SkinModel:
         for i, j in itertools.product(range(xsize), range(ysize)):
             t_name = self.node_matrix[i, j, depth]
             tmp_dz = list(self.fem.Nodes[t_name].DZ.values())[0]
-
-            print(tmp_dz)
             displacement_mat[i, j] = tmp_dz
         return displacement_mat
 

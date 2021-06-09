@@ -149,9 +149,9 @@ class Simulator:
         for i in range(Const.MAX_FRAMES):
             if i < example.frames:
                 example.update_frame(np.array([[0], [0]]).astype(float))
-                prova = run_fem(example.shape.current_map, layers=5, max_force=example.shape.force, mesh_size=10, vis=True)
+                prova = run_fem(example.shape.current_map, layers=5, max_force=example.shape.force, mesh_size=20, vis=True)
                 self.heatmap.nodes += shape.compute_pressure()
-
+            continue
             out.reading.append(self.heatmap.get_heatmap_copy())
             temp = self.heatmap.get_heatmap_copy()
             self.heatmap.nodes = temp * 0.5
