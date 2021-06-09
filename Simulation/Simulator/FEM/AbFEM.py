@@ -27,7 +27,7 @@ class SkinModel:
         self.plate_matrix = None
         self.factors = None
 
-    def create_nodes(self, width, height, layers=1, mesh_size=1.0):
+    def create_nodes(self, width, height, layers=1, mesh_size=1.0, layer_dist=10):
         """
         Creates nodes based on the specified width and height of the skin divided by the mesh size
 
@@ -67,7 +67,7 @@ class SkinModel:
                 name = f'N{x}.{y}.{layer}'
 
                 # Add the node to the FEM, a node list and the 3D matrix
-                self.fem.AddNode(name, x_cord, y_cord, layer*-20)
+                self.fem.AddNode(name, x_cord, y_cord, layer*-layer_dist)
                 self.node_name_list.append(name)
                 self.node_matrix[x, y, layer] = name
 
@@ -124,7 +124,6 @@ class SkinModel:
         # Connect each combination of (nearby) nodes with plates
         if type == 'Plate':
             layer_0 = self.node_matrix[:, :, l0]
-            layer_1 = self.node_matrix[:, :, l1]
 
             visited = []
             one_layer_tuple = []
@@ -203,41 +202,84 @@ class SkinModel:
                 self.fem.Plates[plat_name].pressures.append([force, case_name])
                 # self.fem.AddNodeLoad(self.node_matrix[x, y, 0], 'FZ', -force)
 
-    def __define_support(self, type="Pinned", loc="Sides"):
-        """
-        Sets the nodes on the edges of the skin to be a support, disallowing either movement, rotation or both
+    # Obsolte function (DON'T DELETE FOR REFERENCE)
+    # def __define_support(self, type="Pinned", loc="Sides"):
+    #     """
+    #     Sets the nodes on the edges of the skin to be a support, disallowing either movement, rotation or both
+    #
+    #     :param type: Pinned = no movement, Fixed = no movement, no rotation
+    #     :return: None
+    #     """
+    #     if loc == "Sides":
+    #         for l in range(self.layers):
+    #             nodes = []
+    #             if l < self.layers-1:
+    #                 nodes.extend(self.node_matrix[:, 0, l])
+    #                 nodes.extend(self.node_matrix[:, -1, l])
+    #                 nodes.extend(self.node_matrix[0, :, l])
+    #                 nodes.extend(self.node_matrix[-1, :, l])
+    #             else:
+    #                 nodes = self.node_matrix[:, :, l].ravel()
+    #                 print(nodes)
+    #
+    #             for n in nodes:
+    #                 node = self.fem.Nodes[n]
+    #                 if type == "Pinned":
+    #                     node.SupportDX, node.SupportDY, node.SupportDZ = True, True, True
+    #                 elif type == "Fixed":
+    #                     node.SupportDX, node.SupportDY, node.SupportDZ, node.SupportRX, node.SupportRY, node.SupportRZ = True, True, True, True, True, True
+    #     if loc == "All":
+    #         for node in self.fem.Nodes.values():
+    #             node.SupportDX, node.SupportDY, node.SupportDZ = True, True, True
 
-        :param type: Pinned = no movement, Fixed = no movement, no rotation
+    def define_layer_support(self, layer_nodes, support=('Pinned',), loc='All'):
+        """
+        Sets the nodes that are passed to a certain support, either fixed along a direction or fully fixed
+
+        :param layer_nodes: List of nodes for a layer
+        :param support: Type of support(s) {'Pinned', 'Fixed', 'DX', 'DY', 'DZ', etc.}
+        :param loc: Location of nodes that are supported, either 'All' or 'Side'
         :return: None
         """
-        if loc == "Sides":
-            for l in range(self.layers):
-                nodes = []
-                if l < self.layers-1:
-                    pass
-                    # nodes.extend(self.node_matrix[:, 0, l])
-                    # nodes.extend(self.node_matrix[:, -1, l])
-                    # nodes.extend(self.node_matrix[0, :, l])
-                    # nodes.extend(self.node_matrix[-1, :, l])
-                else:
-                    nodes = self.node_matrix[:, :, l].ravel()
-                    print(nodes)
+        support_dict = {
+            'Pinned': (True, True, True, False, False, False),
+            'Fixed': (True, True, True, True, True, True),
+            'DX': (True, False, False, False, False, False),
+            'DY': (False, True, False, False, False, False),
+            'DZ': (False, False, True, False, False, False),
+            'RX': (False, False, False, True, False, False),
+            'RY': (False, False, False, False, True, False),
+            'RZ': (False, False, False, False, False, True),
+        }
 
-                for n in nodes:
-                    node = self.fem.Nodes[n]
-                    if type == "Pinned":
-                        node.SupportDX, node.SupportDY, node.SupportDZ = True, True, True
-                    elif type == "Fixed":
-                        node.SupportDX, node.SupportDY, node.SupportDZ, node.SupportRX, node.SupportRY, node.SupportRZ = True, True, True, True, True, True
-        if loc == "All":
-            for node in self.fem.Nodes.values():
-                node.SupportDX, node.SupportDY, node.SupportDZ = True, True, True
+        for sup in support:
+            if sup not in support_dict.keys():
+                print("Support '{sup}' not defined!")
+                return
+
+        all_layer_nodes = layer_nodes.ravel()
+        if loc == 'All':
+            for n in all_layer_nodes:
+                node = self.fem.Nodes[n]
+                if len(support) > 1:
+                    setter = support_dict[support[0]]
+                    for sup in support[1:]:
+                        setter = np.array(setter) | np.array(support_dict[sup])
+                else:
+                    setter = support_dict[support[0]]
+
+                node.SupportDX, node.SupportDY, node.SupportDZ, \
+                    node.SupportRX, node.SupportRY, node.SupportRZ = setter
+
+        elif loc == 'Side':
+            pass
+
 
     def get_model(self):
         return self.fem
 
     def analyse(self):
-        self.__define_support(type='Pinned')
+        #self.__define_support(type='Pinned')
 
         self.fem.Analyze(check_statics=True, sparse=True, max_iter=30)
 
@@ -292,8 +334,10 @@ def run_fem(image, max_force=100, mesh_size=5.0, layers=2, vis=True):
     tmp_skin.create_plates()
 
     if layers > 1:
-        pass
-        tmp_skin.connect_layers(0, 1, type='Beam')
+        for layer in range(layers):
+            if layer > 0:
+                tmp_skin.connect_layers(layer-1, layer, type='Beam')
+            tmp_skin.define_layer_support(tmp_skin.get_node_mat()[:, :, layer], support=('DX', 'DY'))
 
     tmp_skin.input_to_load(image, max_force)
     tmp_skin.analyse()
@@ -374,6 +418,6 @@ if __name__ == '__main__':
         sequential_fem(images, layers=1, mesh_size=ms, vis=True)
     else:
         # Process single image
-        run_fem(images[-1], layers=2, max_force=1000, mesh_size=ms, vis=True)
+        run_fem(images[-1], layers=5, max_force=1000, mesh_size=ms, vis=True)
 
     sys.exit()
