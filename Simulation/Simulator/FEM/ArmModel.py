@@ -3,8 +3,9 @@ from PyNite import Visualization
 import numpy as np
 from SkinModel import DEFAULT_PLATE
 
+
 class ArmModel:
-    def __init__(self, layers, diameter=10, height=20):
+    def __init__(self, layers, diameter=5, height=20):
         self.fem = FEModel3D()
         self.node_layers = []
         self.center_layer = []
@@ -18,9 +19,8 @@ class ArmModel:
         it uses the amount of layers and diameter that that
         were specified in the class initialization
 
-        :param d:
-        :param mesh_size:
-        :return:
+        :param mesh_size: The 'coarseness' of the nodes
+        :return: None
         """
         # Create a 'cylinder' of nodes for each layer
         for layer in range(1, self.layers+1):
@@ -54,11 +54,12 @@ class ArmModel:
                 self.node_layers.append(self.center_layer)
             self.node_layers.append(node_layer)
 
+    # TODO Create material_properties dictionary
     def create_plates(self):
         """
         This method combines all the nodes of one layer with each-other with plates
 
-        :return:
+        :return: None
         """
         material = DEFAULT_PLATE
         # Loop over each layer of nodes to connect them
@@ -92,6 +93,21 @@ class ArmModel:
                                       material[1],
                                       material[2])
 
+    # TODO Write method of beams between layers (& later add material_properties dictionary)
+    def connect_layers(self):
+        pass
+
+    # TODO Translate 'panorama' image to projection on plates
+    def add_load(self, image, max_force):
+        pass
+
+    # TODO Add 'fixing' nodes, maybe along non-binary axis is possible?
+    def add_support(self):
+        pass
+
+    # TODO Get displacement along axis from node to center
+    def get_all_displacements(self):
+        pass
 
     def analyse(self):
         self.fem.Analyze(check_statics=True, sparse=True, max_iter=30)
@@ -104,11 +120,17 @@ class ArmModel:
                                   render_loads=False
                                   )
 
+    def get_node_layers(self):
+        return self.node_layers
+
+    def get_model(self):
+        return self.fem
+
 
 if __name__ == '__main__':
     print("Running ArmModel Directly")
     arm_model = ArmModel(3)
-    arm_model.create_nodes(d=5, mesh_size=2)
+    arm_model.create_nodes(mesh_size=2)
     arm_model.create_plates()
     arm_model.analyse()
     arm_model.visualise()
