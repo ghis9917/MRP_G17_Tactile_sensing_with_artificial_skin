@@ -7,6 +7,9 @@ import cv2
 import os
 import matplotlib.pyplot as plt
 
+DEFAULT_PLATE = (1, 0.001, 0.17)
+DEFAULT_BEAM = (29000, 11400, 100, 150, 250, 20)
+
 
 class SkinModel:
     def __init__(self):
@@ -35,6 +38,7 @@ class SkinModel:
         :param height: Height of the skin sheet
         :param layers: Amount of node layers
         :param mesh_size: Subdivision of the sheet
+        :param layer_dist: The distance between each layer
         :return: None
         """
         self.width, self.height = width, height
@@ -74,8 +78,7 @@ class SkinModel:
         # Convert the node matrix after creation to a numpy array for easy slicing
         self.node_matrix = np.array(self.node_matrix, dtype=object)
 
-    # TODO Add parameter to specify which layer gets plates and what their properties are
-    def create_plates(self):
+    def create_plates(self, plate_layer=-1, properties=None):
         """
         This method creates plates between each combination of four nodes in the existing node matrix,
         in order to create a 'layer' of the material that we provide for the plates.
@@ -85,46 +88,78 @@ class SkinModel:
         if (self.width is None) | (self.height is None) | (self.layers is None):
             raise ValueError("Tried to add plates without nodes")
 
+        # Get the shape of the node matrix to create a plate matrix
         shap = self.node_matrix.shape
-        self.plate_matrix = np.array([[["" for _ in range(shap[2])] for _ in range(shap[1]-1)] for _ in range(shap[0]-1)], dtype=object)
-        len_layer = self.layers - 1 if self.layers > 1 else 1
-        for layer in range(len_layer):
-            for i, j in itertools.product(range(len(self.xlsp) - 1), range(len(self.ylsp) - 1)):
+        if self.plate_matrix is None:
+            self.plate_matrix = np.array(
+                [[["" for _ in range(shap[2])]
+                    for _ in range(shap[1]-1)]
+                    for _ in range(shap[0]-1)],
+                dtype=object)
 
-                n1 = 'N' + str(int(i)) + '.' + str(int(j)) + '.' + str(int(layer))
-                n2 = 'N' + str(int(i)) + '.' + str(int(j+1)) + '.' + str(int(layer))
-                n3 = 'N' + str(int(i+1)) + '.' + str(int(j)) + '.' + str(int(layer))
-                n4 = 'N' + str(int(i+1)) + '.' + str(int(j+1)) + '.' + str(int(layer))
+        # If we are doing all layers (plate_layer == -1)
+        if plate_layer == -1:
+            len_layer = self.layers - 1 if self.layers > 1 else 1
+            for layer in range(len_layer):
+                self.__create_plates(layer, properties)
+        # Else we do one layer
+        else:
+            self.__create_plates(plate_layer, properties)
 
-                name = 'P' + str(int(i)) + '.' + str(int(j)) + '.' + str(int(layer))
+    # Extension method of create_plates to prevent duplicate code
+    def __create_plates(self, layer, properties):
+        for i, j in itertools.product(range(len(self.xlsp) - 1), range(len(self.ylsp) - 1)):
+            n1 = 'N' + str(int(i)) + '.' + str(int(j)) + '.' + str(int(layer))
+            n2 = 'N' + str(int(i)) + '.' + str(int(j + 1)) + '.' + str(int(layer))
+            n3 = 'N' + str(int(i + 1)) + '.' + str(int(j)) + '.' + str(int(layer))
+            n4 = 'N' + str(int(i + 1)) + '.' + str(int(j + 1)) + '.' + str(int(layer))
 
-                self.fem.AddPlate(name, n1, n2, n4, n3, self.t, self.E, self.nu)
+            name = 'P' + str(int(i)) + '.' + str(int(j)) + '.' + str(int(layer))
 
-                self.plate_matrix[i, j, layer] = name
+            if properties is None:
+                properties = DEFAULT_PLATE
+            self.fem.AddPlate(name, n1, n2, n4, n3, properties[0], properties[1], properties[2])
 
-    # TODO Add parameters to specify the beam properties
-    def connect_layers(self, l0, l1, type='Beam'):
+            self.plate_matrix[i, j, layer] = name
+
+    def connect_layers(self, l0, l1, connection_type='Beam', beam_properties=None, plate_properties=None):
         """
         Connect the different layers of nodes with either a 'Beam' or a 'Plate'
 
         :param l0: First layer to connect
         :param l1: Second layer to connect
-        :param type: Beam or Plate
+        :param connection_type: Beam or Plate
+        :param beam_properties: The material properties of the beam (if that type is used)
+        :param plate_properties: The material properties of the plate (if that type is used)
         :return: None
         """
-        # If the type is Beam, we can create a 1-1 mapping between the nodes
-        if type == 'Beam':
+        # Value checks
+        if not ((0 <= l0 < self.layers) and (0 <= l1 < self.layers)):
+            raise ValueError("Connection cannot be made between non-existent layers")
+
+        # If the connection_type is Beam, we can create a 1-1 mapping between the nodes
+        if connection_type == 'Beam':
             layer_0 = self.node_matrix[:, :, l0].ravel()
             layer_1 = self.node_matrix[:, :, l1].ravel()
 
             for id in range(len(layer_0)):
                 n1 = layer_0[id]
                 n2 = layer_1[id]
+                if beam_properties is None:
+                    beam_properties = DEFAULT_BEAM
 
-                self.fem.AddMember(f'M{l0}.{l1}.{id}', n1, n2, 29000, 11400, 100, 150, 250, 20)
+                self.fem.AddMember(f'M{l0}.{l1}.{id}', n1, n2,
+                                   beam_properties[0],
+                                   beam_properties[1],
+                                   beam_properties[2],
+                                   beam_properties[3],
+                                   beam_properties[4],
+                                   beam_properties[5])
 
         # Connect each combination of (nearby) nodes with plates
-        if type == 'Plate':
+        if connection_type == 'Plate':
+            if connection_type == 'Plate':
+                raise BrokenPipeError("Right now plate connections are not supported")
             layer_0 = self.node_matrix[:, :, l0]
 
             visited = []
@@ -159,26 +194,26 @@ class SkinModel:
                 n2 = f'N{c1[0]}.{c1[1]}.{l1}'
                 n3 = f'N{c2[0]}.{c2[1]}.{l1}'
 
-                plate_name = f'P.{name}.Middle'
+                plate_name = f'P.{n0}.{n1}.{n2}.{n3}.'
 
                 self.fem.AddPlate(plate_name, n0, n1, n3, n2, self.t, self.E, self.nu)
-
-                # Not added to plate matrix?
 
     def get_node_mat(self):
         return self.node_matrix
 
-    def input_to_load(self, img, max_force):
+    def input_to_load(self, img, max_force, load_type='Plate'):
         """
         Divides the input image in such a way the intensity of the image's values can be translated to pressures
         on nodes or plates
 
         :param img: The input image with white levels indicating the amount of force
         :param max_force: The image's range [0-255] will be mapped to the force range [0-max_force]
+        :param load_type: The type of load, either plate or nodal load
         :return: None
         """
-        # For now, 100 by 100 input, 10 by 10 nodes -> window = -5 to +5
-        # So, for index i the window would be from i*10 to i*10+10
+        if load_type == 'Plate':
+            if self.plate_matrix is None:
+                raise ValueError('There are no plates to put pressure on!')
 
         x_step = self.xlsp[1]
         y_step = self.ylsp[1]
@@ -234,7 +269,7 @@ class SkinModel:
     #         for node in self.fem.Nodes.values():
     #             node.SupportDX, node.SupportDY, node.SupportDZ = True, True, True
 
-    def define_layer_support(self, layer_nodes, support=('Pinned',), loc='All'):
+    def __set_layer_support(self, layer_nodes, support=('Pinned',), loc='All'):
         """
         Sets the nodes that are passed to a certain support, either fixed along a direction or fully fixed
 
@@ -276,6 +311,21 @@ class SkinModel:
         elif loc == 'Side':
             pass
 
+    def define_support(self, support_dict=None):
+        if support_dict is not None:
+            for key, value in support_dict.items():
+                self.__set_layer_support(self.node_matrix[:, :, key], support=value)
+
+        else:
+            for layer in range(self.layers):
+                if self.layers > 1:
+                    for layer in range(self.layers):
+                        if layer > 0:
+                            if layer == self.layers - 1:
+                                self.__set_layer_support(self.node_matrix[:, :, layer], support=('Fixed',))
+                            else:
+                                self.__set_layer_support(self.node_matrix[:, :, layer], support=('DX', 'DY'))
+
     def get_model(self):
         return self.fem
 
@@ -316,33 +366,34 @@ class SkinModel:
         return displacement_mat
 
 
-def run_fem(image, max_force=10, mesh_size=5.0, layers=2, vis=True):
+def run_fem(image, max_force=10, mesh_size=5.0, layers=2, vis=True, plate_dict=None, connect_dict=None):
     """
-    Runs a single instance of the FEM with an image as input
+        Runs a single instance of the FEM with an image as input
 
     :param image: The 'force' image
     :param max_force: The maximum force that is assigned to the highest image value (255)
     :param mesh_size: The coarseness of the plates
     :param layers: The amount of layers on top of each other
     :param vis: Whether to visualize the end displacement
+    :param plate_dict: A dictionary with the layers that have plates and
+
     :return: The results of the FEM analysis
     """
-    tmp_skin = SkinModel()  # Instantiate the model
 
-    size = (image.shape[0], image.shape[1])
+    tmp_skin = SkinModel()                                      # Instantiate the model
+    size = (image.shape[0], image.shape[1])                     # Get the size of the model based on the image
+    tmp_skin.create_nodes(size[0], size[1], layers, mesh_size)  # Create the nodes for our model
 
-    tmp_skin.create_nodes(size[0], size[1], layers, mesh_size)
-    tmp_skin.create_plates()
+    # For each layer, create plates with their corresponding properties
+    if plate_dict is None:
+        plate_dict = {k: DEFAULT_PLATE for k in range(layers-1)}
+    for key, value in plate_dict.items():
+        tmp_skin.create_plates(plate_layer=key, properties=value)
 
-    # TODO Put definition of layer support in separate method
-    if layers > 1:
-        for layer in range(layers):
-            if layer > 0:
-                tmp_skin.connect_layers(layer-1, layer, type='Beam')
-            if layer == layers-1:
-                tmp_skin.define_layer_support(tmp_skin.get_node_mat()[:, :, layer], support=('Fixed',))
-            else:
-                tmp_skin.define_layer_support(tmp_skin.get_node_mat()[:, :, layer], support=('DX', 'DY'))
+    for layer in range(1, layers):
+        tmp_skin.connect_layers(layer - 1, layer, connection_type='Beam')
+
+    tmp_skin.define_support()
 
     tmp_skin.input_to_load(image, max_force)
     tmp_skin.analyse()
