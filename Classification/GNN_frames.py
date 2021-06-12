@@ -1,4 +1,3 @@
-from GNN_classes import GConvNet, get_dataloaders_from_graph, get_dataloaders_from_csv
 import torch
 import matplotlib.pyplot as plt
 import torch.nn as nn

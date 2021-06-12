@@ -117,7 +117,7 @@ class Dataset_from_csv(DGLDataset):
         self.path_adj = path_adj
         self.path_values = path_values
         self.dim = len(self.list_IDs)
-        self.adj = coo_matrix(pd.read_csv(self.path_adj + 'adjacency_matrix.csv').values)
+        self.adj = coo_matrix(pd.read_csv(self.path_adj + 'adjacency_matrix.csv').values) / 100
         self.data = pd.read_csv(self.path_values + 'dataset.csv')
         self.graph = dgl.from_scipy(self.adj, 'weight')
         self.sensors_ids = [f'S{i}' for i in range(40)]  # make it automatic
@@ -144,7 +144,7 @@ class Dataset_from_csv(DGLDataset):
                 pad = torch.zeros((40, self.window_size - sensors.shape[1]))
                 sensors = torch.cat((sensors, pad), axis=1)
             g = copy.deepcopy(self.graph)
-            g.ndata['feature'] = sensors
+            g.ndata['feature'] = sensors / 15
             graph_list.append(g)
 
         labels = torch.Tensor(fp.iloc[0][2:6].values.astype(float))
