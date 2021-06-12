@@ -73,7 +73,7 @@ class Dataset_from_csv(DGLDataset):
         self.path_adj = path_adj
         self.path_values = path_values
         self.dim = len(self.list_IDs)
-        self.adj = coo_matrix(pd.read_csv(self.path_adj + 'adjacency_matrix.csv').values)
+        self.adj = coo_matrix(pd.read_csv(self.path_adj + 'adjacency_matrix.csv').values)/100 #normalization
         self.data = pd.read_csv(self.path_values + 'dataset.csv')
         self.graph = dgl.from_scipy(self.adj, 'weight')
         self.sensors_ids = [f'S{i}' for i in range(40)]  # make it automatic
@@ -98,7 +98,7 @@ class Dataset_from_csv(DGLDataset):
             # pad last window?
             sensors = torch.Tensor(fp[self.sensors_ids].values[start:end].T)
             g = copy.deepcopy(self.graph)
-            g.ndata['feature'] = sensors
+            g.ndata['feature'] = sensors/15 #normalization
             graph_list.append(g)
 
         labels = torch.Tensor(fp.iloc[0][2:6].values.astype(float))
@@ -221,28 +221,30 @@ class GConvNetBigGraph(nn.Module):
         self.window_size = window_size
         self.stride_frac = stride_frac
 
-        hidden1 = 30
-        hidden2 = 10
+        hidden1 = 500
+        hidden2 = 20
         output = 4
 
-        self.conv1 = GraphConv(window_size, hidden1)
+        self.conv1 = GraphConv(window_size, hidden1, bias=True, activation=nn.SiLU())
         self.hidden = nn.Linear(in_features=hidden1, out_features=hidden2, bias=True)
-        self.acthidden = nn.ReLU()
+        self.acthidden = nn.SiLU()
         self.output = nn.Linear(in_features=hidden2, out_features=output, bias=True)
         self.actout = nn.Sigmoid()
 
     def forward(self, graphs, features):
         #define a NN structure using GDL and Torch layers
         x = self.conv1(graphs, features)
+        #x = dgl.nn.SetTransformerEncoder(30, 4, 4, 20, dropouth = 0.9, dropouta=0.9)(graphs, features)
         graphs.ndata['h'] = x
-        x = dgl.max_nodes(graphs, 'h')
-        x = self.hidden(x)
+        x = dgl.nn.MaxPooling()(graphs, x) #dgl.nn.WeightAndSum(500)(graphs, x)#
+        x = self.hidden(x) 
         x = self.acthidden(x)
+        x = nn.Dropout(p=0.2)(x)
         x = self.output(x)
         x = self.actout(x)
         return x
 
-    def train(self, epochs=2, lr=0.01, test_rate=0.8):
+    def train(self, epochs=70, lr=0.001, test_rate=0.8):
         model = self #create a model
         optimizer = torch.optim.Adam(model.parameters(), lr=lr) #choose an optimizer
         loss = nn.BCELoss()
@@ -312,7 +314,7 @@ class GConvNetBigGraph(nn.Module):
 
 if __name__ == '__main__':
     model = GConvNetBigGraph()
-    acc_hist = model.train(epochs=40)
+    acc_hist = model.train(epochs=70)
     plt.plot(acc_hist)
     plt.show()
     model_best = GConvNetBigGraph.load('./GNN_BG.tar')
