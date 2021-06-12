@@ -8,7 +8,6 @@ import matplotlib.pyplot as plt
 from dataloaders import get_dataloaders_from_graph, get_dataloaders_from_csv
 import seaborn as sns
 from sklearn.metrics import confusion_matrix
-from sklearn.utils.multiclass import 
 from GNN_frames import visualize_loss
 
 def matrix_confusion(y_test, y_pred, model='Model'):
