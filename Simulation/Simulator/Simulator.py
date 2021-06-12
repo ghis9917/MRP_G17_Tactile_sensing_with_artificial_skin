@@ -13,18 +13,19 @@ import numpy as np
 from PIL import Image
 from tqdm import tqdm
 
-import Utils.Constants as Const
+import Simulation.Utils.Constants as Const
 
 from Output import Output
 from Classes import Class
-from Utils import Utils
-from Utils.Constants import SMOOTHING, N_CONVOLUTIONS, KERNEL_5_GAUSSIAN
+from Simulation.Utils import Utils
+from Simulation.Utils.Constants import SMOOTHING, N_CONVOLUTIONS, KERNEL_5_GAUSSIAN
 from Graph import Graph
 from HeatMap import HeatMap
 from Sensors import Sensor
 from Shapes import Shape
-from Visualization.Visualizer import Visualizer
+from Simulation.Visualization.Visualizer import Visualizer
 from Input import Input
+from Simulation.Simulator.FEM.AbFEM import run_fem
 
 
 class Simulator:
@@ -148,8 +149,9 @@ class Simulator:
         for i in range(Const.MAX_FRAMES):
             if i < example.frames:
                 example.update_frame(np.array([[0], [0]]).astype(float))
+                prova = run_fem(example.shape.current_map, layers=5, max_force=example.shape.force, mesh_size=20, vis=True)
                 self.heatmap.nodes += shape.compute_pressure()
-
+            continue
             out.reading.append(self.heatmap.get_heatmap_copy())
             temp = self.heatmap.get_heatmap_copy()
             self.heatmap.nodes = temp * 0.5
@@ -260,4 +262,3 @@ if __name__ == "__main__":
     # sim.simulate(1)
     # sim.show_readings()
     # sim.create_database()
-    # TODO: Optimize code by saving a map for every single sensor at the beginning in order to vectorize operations

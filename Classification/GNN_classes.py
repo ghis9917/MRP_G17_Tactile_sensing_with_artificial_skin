@@ -1,5 +1,5 @@
 import torch.nn.functional as F
-from dgl.nn.pytorch import GraphConv, MaxPooling
+from dgl.nn.pytorch import GraphConv
 import json
 import dgl
 import torch.nn as nn
@@ -213,97 +213,92 @@ class GConvNetFrames(nn.Module):
 
 class GConvNetBigGraph(nn.Module):
     def __init__(self,
-                 window_size=30,
-                 stride_frac=1):
+                window_size = 30,
+                stride_frac = 1):
         super().__init__()
 
         self.window_size = window_size
         self.stride_frac = stride_frac
 
-        hidden1 = 30
-        hidden2 = 10
+        hidden1 = 500
+        hidden2 = 20
         output = 4
 
-        self.conv1 = GraphConv(window_size, hidden1)
+        self.conv1 = GraphConv(window_size, hidden1, bias=True, activation=nn.SiLU())
         self.hidden = nn.Linear(in_features=hidden1, out_features=hidden2, bias=True)
-        self.acthidden = nn.ReLU()
+        self.acthidden = nn.SiLU()
         self.output = nn.Linear(in_features=hidden2, out_features=output, bias=True)
         self.actout = nn.Sigmoid()
 
     def forward(self, graphs, features):
-        # define a NN structure using GDL and Torch layers
+        #define a NN structure using GDL and Torch layers
         x = self.conv1(graphs, features)
+        #x = dgl.nn.SetTransformerEncoder(30, 4, 4, 20, dropouth = 0.9, dropouta=0.9)(graphs, features)
         graphs.ndata['h'] = x
-        x = dgl.max_nodes(graphs, 'h')
+        x = dgl.nn.MaxPooling()(graphs, x) #dgl.nn.WeightAndSum(500)(graphs, x)#
         x = self.hidden(x)
         x = self.acthidden(x)
+        x = nn.Dropout(p=0.2)(x)
         x = self.output(x)
         x = self.actout(x)
         return x
 
-    def train(self, epochs=2, lr=0.01):
-        model = self  # create a model
-        optimizer = torch.optim.Adam(model.parameters(), lr=lr)  # choose an optimizer
+    def train(self, epochs=70, lr=0.001, test_rate=0.8):
+        model = self #create a model
+        optimizer = torch.optim.Adam(model.parameters(), lr=lr) #choose an optimizer
         loss = nn.BCELoss()
         ## Configuring the DataLoader ##
         batch_size = 1
-        train_dataloader, validation_dataloader, test_dataloader = get_dataloaders_from_csv(
-            window_size=self.window_size, stride_frac=self.stride_frac)
+        train_dataloader, validation_dataloader, test_dataloader = get_dataloaders_from_csv(window_size=self.window_size,stride_frac=self.stride_frac)
         num_train = train_dataloader.__len__()
 
         ## Training phase ##
         acc_history = []
         best_acc = 0
         for epoch in range(epochs):
-            print('Epoch ', epoch + 1, 'of ', epochs)
+            print('Epoch ', epoch+1, 'of ', epochs)
             ex = 0
             for batched_graph, label in train_dataloader:
                 batched_graph = batched_graph[0]
-                pred = model(batched_graph,
-                             batched_graph.ndata['feature'].float())  # forward computation on the batched graph
-                J = loss(pred, label)  # calculate the cost function
-                optimizer.zero_grad()  # set the gradients to zero
+                pred = model(batched_graph,batched_graph.ndata['feature'].float()) #forward computation on the batched graph
+                J = loss(pred, label) #calculate the cost function
+                optimizer.zero_grad() #set the gradients to zero
                 J.backward()
-                optimizer.step()  # backpropagate
-                print(ex, ' / ', num_train)
+                optimizer.step() #backpropagate
+                print(ex,' / ',num_train)
                 ex += batch_size
 
-            # calculate the accuracy on test set and print
-            num_correct = 0;
-            num_tests = 0
+            #calculate the accuracy on test set and print
+            num_correct = 0; num_tests = 0
             for batched_graph, label in test_dataloader:
                 batched_graph = batched_graph[0]
-                pred = model(batched_graph,
-                             batched_graph.ndata['feature'].float())  # forward computation on the batched graph
-                num_correct += ((pred > 0.5) == label).sum().item()
-                num_tests += (label.shape[0] * label.shape[1])
+                pred = model(batched_graph, batched_graph.ndata['feature'].float()) #forward computation on the batched graph
+                num_correct += ((pred>0.5) == label).sum().item()
+                num_tests += (label.shape[0]*label.shape[1])
             acc = num_correct / num_tests
             acc_history.append(acc)
             print('Test of overall accuracy: ', acc)
-            if (acc > best_acc):
+            if (acc>best_acc):
                 best_acc = acc
                 self.save()
 
         ## Save the accuracy/epochs report ##
-        with open('./logfile.txt', 'w') as fp:
+        with open('./logfile.txt','w') as fp:
             fp.write(json.dumps(acc_history))
             print('### Log salvato ###')
 
         return acc_history
 
     def evaluation(self):
-        train_dataloader, validation_dataloader, test_dataloader = get_dataloaders_from_csv(
-            window_size=self.window_size, stride_frac=self.stride_frac)
+        train_dataloader, validation_dataloader, test_dataloader = get_dataloaders_from_csv(window_size=self.window_size,stride_frac=self.stride_frac)
         print('### Evaluation of the network ###')
-        # calculate the accuracy on test set and print
-        num_correct = 0;
-        num_tests = 0
+        #calculate the accuracy on test set and print
+        num_correct = 0; num_tests = 0
         for batched_graph, label in test_dataloader:
             batched_graph = batched_graph[0]
-            pred = model(batched_graph,
-                         batched_graph.ndata['feature'].float())  # forward computation on the batched graph
-            num_correct += ((pred > 0.5) == label).sum().item()
-            num_tests += (label.shape[0] * label.shape[1])
+            pred = model(batched_graph, batched_graph.ndata['feature'].float()) #forward computation on the batched graph
+            num_correct += ((pred>0.5) == label).sum().item()
+            num_tests += (label.shape[0]*label.shape[1])
         print('Evaluation of overall accuracy: ', num_correct / num_tests)
 
     def save(self, file='GNN_BG.tar'):
