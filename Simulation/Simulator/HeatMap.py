@@ -5,7 +5,7 @@ import numpy as np
 import PIL.Image as Image
 
 from Sensors import Sensor
-import Utils.Constants as Const
+import Simulation.Utils.Constants as Const
 
 
 class HeatMap:
@@ -24,7 +24,6 @@ class HeatMap:
 
     def check_what_this_is(self, sensors):
         temp = []
-        print("test")
         for x in range(self.width):
             templ = []
             for y in range(self.height):
