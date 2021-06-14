@@ -7,7 +7,7 @@ import cv2
 import os
 import Simulation.Utils.Constants as Const
 import matplotlib.pyplot as plt
-from SkinModel import SkinModel, DEFAULT_PLATE, DEFAULT_BEAM
+from Simulation.Simulator.FEM.SkinModel import SkinModel, DEFAULT_PLATE, DEFAULT_BEAM
 
 
 def run_fem(image, max_force=10, mesh_size=5.0, layers=2, vis=True, plate_dict=None, connect_dict=None):
