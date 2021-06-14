@@ -9,6 +9,8 @@ from dataloaders import get_dataloaders_from_graph, get_dataloaders_from_csv
 import seaborn as sns
 from sklearn.metrics import confusion_matrix
 from GNN_frames import visualize_loss
+from prettytable import PrettyTable
+from sklearn.utils.multiclass import unique_labels
 
 def matrix_confusion(y_test, y_pred, model='Model'):
     # create labels for matrix
@@ -23,8 +25,8 @@ def matrix_confusion(y_test, y_pred, model='Model'):
     plt.savefig('confusion_matrix_' + model + '.jpg')
     plt.show()
 
-
 def class_to_label(y):
+    y = y.type(torch.uint8)
     classes = [['Big','Small'],['Dynamic','Static'],['Press','Tap'],['Dangeours','Safe']]
     return f'{classes[0][y[0,0].item()]}/{classes[1][y[0,1].item()]}/{classes[2][y[0,2].item()]}/{classes[3][y[0,3].item()]}'
 
@@ -45,7 +47,6 @@ class GConvNetSimple(nn.Module):
         graph = dgl.mean_nodes(graph, 'feature')
         # return self.output(graph).view(-1)
         return torch.sigmoid(self.output(graph)).view(-1)
-
 
 class GConvNetFrames(nn.Module):
     def __init__(self, device, window_size=30, stride_frac=1):
@@ -249,6 +250,8 @@ class GConvNetBigGraph(nn.Module):
         self.output = nn.Linear(in_features=hidden2, out_features=output, bias=True)
         self.actout = nn.Sigmoid()
 
+        self.count_parameters()
+
     def forward(self, graphs, features):
         #define a NN structure using GDL and Torch layers
         x = self.conv1(graphs, features)
@@ -261,6 +264,19 @@ class GConvNetBigGraph(nn.Module):
         x = self.output(x)
         x = self.actout(x)
         return x
+
+    def count_parameters(self):
+        model = self
+        table = PrettyTable(["Modules", "Parameters"])
+        total_params = 0
+        for name, parameter in model.named_parameters():
+            if not parameter.requires_grad: continue
+            param = parameter.numel()
+            table.add_row([name, param])
+            total_params += param
+        print(table)
+        print(f"Total Trainable Params: {total_params}")
+        return total_params
 
     def train(self, train_dataloader, validation_dataloader, epochs=70, lr=0.001, test_rate=0.8):
         model = self #create a model
@@ -339,8 +355,6 @@ class GConvNetBigGraph(nn.Module):
             # Per Clcass accuracy
             num_correct_class += (pred == label)
             num_test_class += 1
-
-        print('figa')
 
         acc = num_correct / num_tests
         print(f'Overall accuracy: {acc}, Loss: {test_loss}')
