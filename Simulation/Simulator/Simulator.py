@@ -68,41 +68,54 @@ class Simulator:
         return Graph(sensors, self.width, self.height)
 
     def gen_input(self, num: int) -> List[Input]:
+        # TODO: test if values correspond to expected class
         input_list = []
 
-        for i in range(num):
-            velocity = np.asarray([
-                [np.random.rand() * Const.MAX_VELOCITY * (
-                    1 if 0 > np.random.rand() >= 0.3 else 0 if 0.3 > np.random.rand() >= 0.6 else -1)],
-                [np.random.rand() * Const.MAX_VELOCITY * (
-                    1 if 0 > np.random.rand() >= 0.3 else 0 if 0.3 > np.random.rand() >= 0.6 else -1)]
-            ]) if np.random.rand() > 0.5 else np.asarray([[0], [0]])
-            center = np.asarray([
-                [np.random.rand() * self.width],
-                [np.random.rand() * self.height]
-            ])
-            shape = Const.SHAPES[np.random.randint(len(Const.SHAPES))]
-            frames = math.ceil(np.random.rand() * Const.MAX_FRAMES)
-            force = np.random.rand() * Const.MAX_FORCE
+        for big, dynamic, press, dangerous in itertools.product(range(2), range(2), range(2), range(2)):
+            for _ in range(num):
+                if big:
+                    shape = Const.BIG_SHAPES[np.random.randint(len(Const.BIG_SHAPES))]
+                else:
+                    shape = Const.SMALL_SHAPES[np.random.randint(len(Const.SMALL_SHAPES))]
 
-            input_list.append(self.create_one_input(shape, center, velocity, frames, force))
+                if dynamic:
+                    velocity = np.asarray([[0], [0]])
+                else:
+                    velocity = np.asarray([
+                        [np.random.rand() * Const.MAX_VELOCITY * (
+                            1 if np.random.rand() >= 0.5 else -1)],
+                        [np.random.rand() * Const.MAX_VELOCITY * (
+                            1 if np.random.rand() >= 0.5 else -1)]
+                    ])
 
+                if press:
+                    frames = np.random.randint(Const.THRESHOLD_PRESS, Const.MAX_FRAMES)
+                else:
+                    frames = np.random.randint(0, Const.THRESHOLD_PRESS)
+
+                if dangerous:
+                    force = np.random.uniform(Const.THRESHOLD_DANGEROUS, Const.MAX_FORCE)
+                else:
+                    force = np.random.uniform(0, Const.THRESHOLD_DANGEROUS)
+
+                center = np.asarray([
+                    [np.random.rand() * self.width],
+                    [np.random.rand() * self.height]
+                ])
+
+                simulation_class = Class(
+                    shape_size=bool(big),
+                    movement=bool(dynamic),
+                    touch_type=bool(press),
+                    dangerous=bool(dangerous)
+                )
+                input_list.append(Input(
+                    shape=Shape(center, force, shape, self.width, self.height),
+                    vel=velocity,
+                    frames=frames,
+                    simulation_class=simulation_class
+                ))
         return input_list
-
-    def create_one_input(self, shape, center, velocity, frames, force):
-        simulation_class = Class(
-            shape_size=Const.BIG(shape),
-            movement=abs(np.linalg.norm(velocity)) > 0,  # Velocity vector has a norm higher than 0
-            touch_type=frames > Const.THRESHOLD_PRESS,
-            # If the interaction lasts for more than 3 frames than the touch becomes a "press"
-            dangerous=force > Const.THRESHOLD_DANGEROUS  # Unit is kPa, higher than 90.5 is considered dangerous
-        )
-        return Input(
-            shape=Shape(center, force, shape, self.width, self.height),
-            vel=velocity,
-            frames=frames,
-            simulation_class=simulation_class
-        )
 
     def gen_output(self, inp: List[Input]) -> List:
         version = Const.DATASET_VERSION
@@ -141,17 +154,11 @@ class Simulator:
 
         # Compute frames readings
         for i in range(Const.MAX_FRAMES):
-            max = -np.inf
             if i < example.frames:
                 example.update_frame(np.array([[0], [0]]).astype(float))
                 displacements = run_fem(shape.current_map, layers=Const.LAYERS, max_force=shape.force, mesh_size=1, vis=False)
                 self.heatmap.nodes += displacements
                 example.update_frame()
-                max = np.max(displacements) if np.max(displacements) > max else max
-
-            # image = cv2.resize(self.heatmap.nodes*self.heatmap.sensors_map, dsize=(1000, 1000), interpolation=cv2.INTER_CUBIC)
-            # plt.matshow(image, vmin=0, vmax=max)
-            # plt.show()
 
             temp = self.heatmap.get_heatmap_copy()
             out.reading.append(temp)
@@ -221,4 +228,4 @@ if __name__ == "__main__":
     )
     # sim.simulate(Const.N_SIMULATIONS)
     sim.simulate(1)
-    sim.show_readings()
+    # sim.show_readings()

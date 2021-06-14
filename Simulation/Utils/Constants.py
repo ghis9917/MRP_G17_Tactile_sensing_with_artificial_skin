@@ -26,23 +26,9 @@ THRESHOLD_PRESS = 3
 THRESHOLD_DANGEROUS = 9.05
 MAX_OFFSET = 10
 MAX_NOISE = 10
-SHAPES = ['circle blur.png', 'circle_blur_small.png', 'circle no blur.png', 'circle_no_blur_small.png', 'hand.png', 'hand_small.png']
-
+BIG_SHAPES = ['circle blur.png', 'circle no blur.png', 'hand.png', 'hand1.png', 'hand2.png', 'fist1.png']
+SMALL_SHAPES = ['circle_blur_small.png', 'circle_no_blur_small.png', 'hand_small.png', 'string.png']
 NEAREST_NEIGHBOUR_THRESHOLD = 100
-
-def BIG(val: str) -> bool:
-    if val == 'circle blur.png':
-        return True
-    elif val == 'circle no blur.png':
-        return True
-    elif val == 'hand.png':
-        return True
-    elif val == 'circle_blur_small.png':
-        return False
-    elif val == 'circle_no_blur_small.png':
-        return False
-    elif val == 'hand_small.png':
-        return False
 
 
 # FEM
