@@ -5,6 +5,7 @@ from PyNite import Visualization
 import numpy as np
 import cv2
 import os
+import Simulation.Utils.Constants as Const
 import matplotlib.pyplot as plt
 
 
@@ -45,9 +46,9 @@ class SkinModel:
         y_steps = int(height // mesh_size)
         
         # Create a list with each x and y value for the possible nodes
-        x_lsp = np.linspace(0, width, x_steps+1)
+        x_lsp = np.linspace(0, width, x_steps)
         self.xlsp = x_lsp
-        y_lsp = np.linspace(0, height, y_steps+1)
+        y_lsp = np.linspace(0, height, y_steps)
         self.ylsp = y_lsp
 
         layer_distance = x_steps if x_steps > y_steps else y_steps
@@ -184,7 +185,7 @@ class SkinModel:
         y_step = self.ylsp[1]
 
         s = self.plate_matrix.shape
-        print(s)
+        # print(s)
 
         for x, y in itertools.product(range(s[0]), range(s[1])):
             x_0 = int(x*x_step)
@@ -256,7 +257,7 @@ class SkinModel:
 
         for sup in support:
             if sup not in support_dict.keys():
-                print("Support '{sup}' not defined!")
+                # print("Support '{sup}' not defined!")
                 return
 
         all_layer_nodes = layer_nodes.ravel()
@@ -282,7 +283,7 @@ class SkinModel:
     def analyse(self):
         #self.__define_support(type='Pinned')
 
-        self.fem.Analyze(check_statics=True, sparse=True, max_iter=30)
+        self.fem.Analyze(check_statics=False, sparse=True, max_iter=30)
 
     def visualise(self):
         Visualization.RenderModel(self.fem,
@@ -305,15 +306,15 @@ class SkinModel:
         if disp == 'DZ':
             return node.DZ
 
-    def get_all_displacements(self, depth=1):
+    def get_all_displacements(self, depth=1, layers=3):
         xsize = self.node_matrix.shape[0]
         ysize = self.node_matrix.shape[1]
-        displacement_mat = np.zeros(shape=(xsize, ysize))
-        for i, j in itertools.product(range(xsize), range(ysize)):
-            t_name = self.node_matrix[i, j, depth]
+        displacement_mat = np.zeros(shape=(xsize, ysize, layers))
+        for i, j, z in itertools.product(range(xsize), range(ysize), range(layers)):
+            t_name = self.node_matrix[i, j, z]
             tmp_dz = list(self.fem.Nodes[t_name].DZ.values())[0]
-            displacement_mat[i, j] = tmp_dz
-        return displacement_mat
+            displacement_mat[i, j, z] = tmp_dz
+        return displacement_mat[:, :, 0]
 
 
 def run_fem(image, max_force=10, mesh_size=5.0, layers=2, vis=True):
@@ -347,7 +348,7 @@ def run_fem(image, max_force=10, mesh_size=5.0, layers=2, vis=True):
     tmp_skin.input_to_load(image, max_force)
     tmp_skin.analyse()
 
-    displacement = tmp_skin.get_all_displacements()
+    displacement = tmp_skin.get_all_displacements(depth=layers)
 
     if vis:
         tmp_skin.visualise()
@@ -355,7 +356,7 @@ def run_fem(image, max_force=10, mesh_size=5.0, layers=2, vis=True):
     return displacement
 
 
-def sequential_fem(image_array, max_force=100, normalize=False, size=(100, 100), mesh_size=5.0, layers=2, vis=True):
+def sequential_fem(image_array, max_force=100, normalize=False, mesh_size=5.0, layers=2, vis=True):
     """
     Takes an array of images, creates a FEM and analyses it in sequence
 
@@ -369,10 +370,11 @@ def sequential_fem(image_array, max_force=100, normalize=False, size=(100, 100),
     :return: List of analysis results
     """
     total_time = len(image_array)
+    size = (image_array[0].shape[0], image_array[0].shape[1])
 
     if normalize:
         # TODO normalize images to given size
-        print(size)
+        # print(size)
         pass
 
     for count, image in enumerate(image_array):
@@ -420,9 +422,9 @@ if __name__ == '__main__':
 
     if seq_or_not == 'y':
         # Process images through FEM
-        sequential_fem(images, layers=1, mesh_size=ms, vis=True)
+        sequential_fem(images, layers=Const.LAYERS, mesh_size=ms, vis=True)
     else:
         # Process single image
-        run_fem(images[-1], layers=5, max_force=100, mesh_size=ms, vis=True)
+        run_fem(images[-1], layers=Const.LAYERS, max_force=100, mesh_size=ms, vis=True)
 
     sys.exit()

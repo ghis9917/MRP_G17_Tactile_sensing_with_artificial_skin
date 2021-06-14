@@ -2,44 +2,41 @@
 import csv
 import itertools
 import math
+import multiprocessing as mp
 import os
 import time
-from itertools import product
-import multiprocessing as mp
 from typing import List
 
 import cv2
 import numpy as np
 from PIL import Image
-from tqdm import tqdm
+from matplotlib import pyplot as plt
 
 import Simulation.Utils.Constants as Const
-
-from Output import Output
 from Classes import Class
-from Simulation.Utils import Utils
-from Simulation.Utils.Constants import SMOOTHING, N_CONVOLUTIONS, KERNEL_5_GAUSSIAN
 from Graph import Graph
 from HeatMap import HeatMap
+from Input import Input
+from Output import Output
 from Sensors import Sensor
 from Shapes import Shape
-from Simulation.Visualization.Visualizer import Visualizer
-from Input import Input
 from Simulation.Simulator.FEM.AbFEM import run_fem
+from Simulation.Utils import Utils
+from Simulation.Utils.Constants import SMOOTHING, N_CONVOLUTIONS, KERNEL_5_GAUSSIAN
+from Simulation.Visualization.Visualizer import Visualizer
 
 
 class Simulator:
-    def __init__(self, w: int, h: int):
+    def __init__(self, w: int, h: int, number_of_sensors):
         self.width = w
         self.height = h
         self.input: List[Shape] = []
         self.output: List[Output] = []
 
         # self.graph = self.initialize_graph(n_sensors, offset, noise, distribution)
-        self.heatmap = self.initialize_heatmap(w, h)
+        self.heatmap = HeatMap(w, h, number_of_sensors)
         print("Heatmap Initialized")
-        self.n_sensors: int = len(self.heatmap.sensors)
-        self.test_sensors()
+        self.n_sensors: int = number_of_sensors
 
     def simulate(self, n_simulations) -> None:
         self.input = self.gen_input(n_simulations)
@@ -50,9 +47,12 @@ class Simulator:
     def show_readings(self) -> None:
         counter = 0
         for out in self.output:
-            viz1 = Visualizer(self.heatmap.nodes, self.heatmap.sensor_readings(), self.input[counter].shape)
-            viz1.ani_3D(out.reading, self.heatmap.sensors_map)
-            viz1.ani_2D(out.reading, self.heatmap.sensors_map)
+            resized_outputs = [cv2.resize(output, dsize=(250, 250), interpolation=cv2.INTER_CUBIC) for output in
+                               out.reading]
+            viz1 = Visualizer(
+                cv2.resize(self.heatmap.nodes, dsize=(250, 250), interpolation=cv2.INTER_CUBIC))
+            viz1.ani_3D(resized_outputs, cv2.resize(self.heatmap.sensors_map, dsize=(250, 250), interpolation=cv2.INTER_CUBIC))
+            viz1.ani_2D(resized_outputs, cv2.resize(self.heatmap.sensors_map, dsize=(250, 250), interpolation=cv2.INTER_CUBIC))
             counter += 1
 
     def initialize_graph(self, num_sensors: int, offset_range: int, noise_range: int,
@@ -66,16 +66,6 @@ class Simulator:
                 temp_noise = np.random.rand() * noise_range
                 sensors.append(Sensor(i, tempx, tempy, temp_offset, temp_noise))
         return Graph(sensors, self.width, self.height)
-
-    def initialize_heatmap(self, w, h):
-        sensors_map = cv2.resize(
-            cv2.imread('../Patterns/out/Pattern40.png', cv2.IMREAD_GRAYSCALE),
-            dsize=(self.width, self.height),
-            interpolation=cv2.INTER_CUBIC
-        )
-
-        sensors_map = 1 * (sensors_map > 0)
-        return HeatMap(w, h, sensors_map)
 
     def gen_input(self, num: int) -> List[Input]:
         input_list = []
@@ -137,7 +127,7 @@ class Simulator:
         print(f"Simulation used {t2 - t1} seconds")
 
         self.write_sensor_map_image(version)
-        self.write_sensor_adjacency_matrix(version)
+        # self.write_sensor_adjacency_matrix(version)
 
         return output
 
@@ -145,19 +135,27 @@ class Simulator:
         out = Output(idn, example.shape, example.simulation_class)
         shape = example.shape
 
+        print(shape.force)
+        print(example.vel)
+        print(example.frames)
+
         # Compute frames readings
         for i in range(Const.MAX_FRAMES):
+            max = -np.inf
             if i < example.frames:
                 example.update_frame(np.array([[0], [0]]).astype(float))
-                prova = run_fem(example.shape.current_map, layers=5, max_force=example.shape.force, mesh_size=20, vis=True)
-                self.heatmap.nodes += shape.compute_pressure()
-            continue
-            out.reading.append(self.heatmap.get_heatmap_copy())
-            temp = self.heatmap.get_heatmap_copy()
-            self.heatmap.nodes = temp * 0.5
-
-            if i < example.frames:
+                displacements = run_fem(shape.current_map, layers=Const.LAYERS, max_force=shape.force, mesh_size=1, vis=False)
+                self.heatmap.nodes += displacements
                 example.update_frame()
+                max = np.max(displacements) if np.max(displacements) > max else max
+
+            # image = cv2.resize(self.heatmap.nodes*self.heatmap.sensors_map, dsize=(1000, 1000), interpolation=cv2.INTER_CUBIC)
+            # plt.matshow(image, vmin=0, vmax=max)
+            # plt.show()
+
+            temp = self.heatmap.get_heatmap_copy()
+            out.reading.append(temp)
+            self.heatmap.nodes = temp * 0.1
 
             first_part = [
                 str(out.id),
@@ -175,24 +173,6 @@ class Simulator:
                 writer = csv.writer(f)
                 writer.writerow(first_part + second_part + third_part)
 
-        # # Write padding for remaining empty frames
-        # for frame in range(Const.MAX_FRAMES - len(out.reading)):
-        #     first_part = [
-        #         str(out.id),
-        #         len(out.reading) + frame,
-        #         int(out.simulation_class.big),
-        #         int(out.simulation_class.moving),
-        #         int(out.simulation_class.press),
-        #         int(out.simulation_class.dangerous)
-        #     ]
-        #
-        #     second_part = [0 for _ in self.heatmap.sensors]
-        #
-        #     third_part = [out.shape.shape, out.shape.force, np.linalg.norm(example.vel)]
-        #     with open(f'../out/v{version}/dataset.csv', 'a', newline='') as f:
-        #         writer = csv.writer(f)
-        #         writer.writerow(first_part + second_part + third_part)
-
         return out
 
     def create_histogram(self, l: List) -> np.ndarray:
@@ -204,16 +184,8 @@ class Simulator:
                 hg = Utils.convolve2D(hg, KERNEL_5_GAUSSIAN, padding=2)
         return hg
 
-    def create_database(self):
-        version = 3
-        if not os.path.exists(f'../out/v{version}'):
-            os.makedirs(f'../out/v{version}')
-
-        self.write_sensor_map_image(version)
-        self.write_sensor_adjacency_matrix(version)
-
     def write_sensor_map_image(self, version):
-        sensor_placement = Image.fromarray(np.uint8(self.heatmap.sensors_map * 255), 'L')
+        sensor_placement = Image.fromarray(np.uint8((self.heatmap.sensors_map > 0) * 255), 'L')
         sensor_placement.save(f'../out/v{version}/sensor_map.png')
 
     def write_sensor_adjacency_matrix(self, version):
@@ -233,32 +205,20 @@ class Simulator:
                 if len(row) > 0:
                     writer.writerow(row)
 
-    def test_sensors(self):
-        for sensor in self.heatmap.sensors:
-            prova = np.zeros(shape=self.heatmap.sensors_map.shape)
-            for value in sensor.coords:
-                prova[value[0], value[1]] = 1
-            break
-
     def get_sensors_readings(self, frame):
         readings = []
-        for sensor in self.heatmap.sensors:
-            reading = (sensor.map * frame)
-            mask = reading > 0
-            if np.sum(reading[mask]) == 0:
-                reading = 0
-            else:
-                reading = np.mean(reading[mask])
-            readings.append(reading)
+        for x, y in itertools.product(range(self.height), range(self.width)):
+            if self.heatmap.sensors_map[x, y]:
+                readings.append(frame[x, y])
         return readings
 
 
 if __name__ == "__main__":
     sim = Simulator(
-        w=250,
-        h=250
+        w=15,
+        h=15,
+        number_of_sensors=40
     )
-    sim.simulate(Const.N_SIMULATIONS)
-    # sim.simulate(1)
-    # sim.show_readings()
-    # sim.create_database()
+    # sim.simulate(Const.N_SIMULATIONS)
+    sim.simulate(1)
+    sim.show_readings()

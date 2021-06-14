@@ -1,6 +1,6 @@
 import numpy as np
 
-DATASET_VERSION = 7
+DATASET_VERSION = -1
 N_SIMULATIONS = 10000
 SMOOTHING = True
 N_CONVOLUTIONS = 50
@@ -19,9 +19,9 @@ KERNEL_5_GAUSSIAN = 1 / 256 * np.array([
 ])
 
 # INPUT VALUES
-MAX_VELOCITY = 5
+MAX_VELOCITY = 1
 MAX_FRAMES = 30
-MAX_FORCE = 15
+MAX_FORCE = 150
 THRESHOLD_PRESS = 3
 THRESHOLD_DANGEROUS = 9.05
 MAX_OFFSET = 10
@@ -43,4 +43,8 @@ def BIG(val: str) -> bool:
         return False
     elif val == 'hand_small.png':
         return False
+
+
+# FEM
+LAYERS = 3
 
