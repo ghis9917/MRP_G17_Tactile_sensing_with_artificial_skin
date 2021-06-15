@@ -1,4 +1,5 @@
 # %%
+import contextlib
 import csv
 import itertools
 import math
@@ -10,7 +11,7 @@ from typing import List
 import cv2
 import numpy as np
 from PIL import Image
-from matplotlib import pyplot as plt
+from tqdm import tqdm
 
 import Simulation.Utils.Constants as Const
 from Classes import Class
@@ -21,8 +22,6 @@ from Output import Output
 from Sensors import Sensor
 from Shapes import Shape
 from Simulation.Simulator.FEM.AbFEM import run_fem
-from Simulation.Utils import Utils
-from Simulation.Utils.Constants import SMOOTHING, N_CONVOLUTIONS, KERNEL_5_GAUSSIAN
 from Simulation.Visualization.Visualizer import Visualizer
 
 
@@ -33,7 +32,6 @@ class Simulator:
         self.input: List[Shape] = []
         self.output: List[Output] = []
 
-        # self.graph = self.initialize_graph(n_sensors, offset, noise, distribution)
         self.heatmap = HeatMap(w, h, number_of_sensors)
         print("Heatmap Initialized")
         self.n_sensors: int = number_of_sensors
@@ -118,7 +116,7 @@ class Simulator:
 
         return input_list
 
-    def gen_output(self, inp: List[Input]) -> List:
+    def gen_output(self, inp: List[Input]) -> None:
         version = Const.DATASET_VERSION
         if not os.path.exists(f'../out/v{version}'):
             os.makedirs(f'../out/v{version}')
@@ -131,11 +129,11 @@ class Simulator:
             )
 
         t1 = time.time()
-        output = []
         pool = mp.Pool(mp.cpu_count())
         for i in range(len(inp)):
-            output.append(pool.apply(self.compute_frames, args=(i, inp[i], version)))
+            pool.apply_async(self.compute_frames, args=(i, inp[i], version))
         pool.close()
+        pool.join()
         t2 = time.time()
 
         print(f"Simulation used {t2 - t1} seconds")
@@ -143,17 +141,22 @@ class Simulator:
         self.write_sensor_map_image(version)
         # self.write_sensor_adjacency_matrix(version)
 
-        return output
-
     def compute_frames(self, idn, example, version):
         out = Output(idn, example.shape, example.simulation_class)
         shape = example.shape
 
         # Compute frames readings
-        for i in range(Const.MAX_FRAMES):
+        for i in tqdm(range(Const.MAX_FRAMES)):
             if i < example.frames:
                 example.update_frame(np.array([[0], [0]]).astype(float))
-                displacements = run_fem(shape.current_map, layers=Const.LAYERS, max_force=shape.force, mesh_size=1, vis=False)
+                with open(os.devnull, "w") as f, contextlib.redirect_stdout(f):  # Ignore prints in function
+                    displacements = run_fem(
+                        shape.current_map,
+                        layers=Const.LAYERS,
+                        max_force=shape.force,
+                        mesh_size=1,
+                        vis=False
+                    )
                 self.heatmap.nodes += displacements
                 example.update_frame()
 
@@ -170,23 +173,17 @@ class Simulator:
                 int(out.simulation_class.dangerous)
             ]
 
+            # sensor_values = out.reading[i]*self.heatmap.sensors_map + self.heatmap.sensors_map
+            # second_part = list(sensor_values[np.nonzero(sensor_values)] - 1)
             second_part = self.get_sensors_readings(out.reading[i])
 
             third_part = [out.shape.shape, out.shape.force, np.linalg.norm(example.vel)]
+
             with open(f'../out/v{version}/dataset.csv', 'a', newline='') as f:
                 writer = csv.writer(f)
                 writer.writerow(first_part + second_part + third_part)
 
-        return out
-
-    def create_histogram(self, l: List) -> np.ndarray:
-        hg = np.zeros(shape=(self.graph.width + 1, self.graph.height + 1))
-        for i in range(len(l)):
-            hg[self.graph.sensors[i].y, self.graph.sensors[i].x] = l[i]
-        if SMOOTHING:
-            for i in range(N_CONVOLUTIONS):
-                hg = Utils.convolve2D(hg, KERNEL_5_GAUSSIAN, padding=2)
-        return hg
+        self.output.append(out)
 
     def write_sensor_map_image(self, version):
         sensor_placement = Image.fromarray(np.uint8((self.heatmap.sensors_map > 0) * 255), 'L')
@@ -224,5 +221,5 @@ if __name__ == "__main__":
         number_of_sensors=40
     )
     # sim.simulate(Const.N_SIMULATIONS)
-    sim.simulate(1)
+    sim.simulate(10)
     # sim.show_readings()

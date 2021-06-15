@@ -40,6 +40,7 @@ def run_fem(image, max_force=10, mesh_size=5.0, layers=2, vis=True, plate_dict=N
     tmp_skin.define_support()
 
     tmp_skin.input_to_load(image, max_force)
+
     tmp_skin.analyse()
 
     displacement = tmp_skin.get_all_displacements()
