@@ -68,7 +68,6 @@ class Simulator:
         return Graph(sensors, self.width, self.height)
 
     def gen_input(self, num: int) -> List[Input]:
-        # TODO: test if values correspond to expected class
         input_list = []
 
         for big, dynamic, press, dangerous in itertools.product(range(2), range(2), range(2), range(2)):
@@ -79,14 +78,15 @@ class Simulator:
                     shape = Const.SMALL_SHAPES[np.random.randint(len(Const.SMALL_SHAPES))]
 
                 if dynamic:
-                    velocity = np.asarray([[0], [0]])
-                else:
                     velocity = np.asarray([
                         [np.random.rand() * Const.MAX_VELOCITY * (
                             1 if np.random.rand() >= 0.5 else -1)],
                         [np.random.rand() * Const.MAX_VELOCITY * (
                             1 if np.random.rand() >= 0.5 else -1)]
                     ])
+                else:
+                    velocity = np.asarray([[0], [0]])
+
 
                 if press:
                     frames = np.random.randint(Const.THRESHOLD_PRESS, Const.MAX_FRAMES)
@@ -115,6 +115,7 @@ class Simulator:
                     frames=frames,
                     simulation_class=simulation_class
                 ))
+
         return input_list
 
     def gen_output(self, inp: List[Input]) -> List:
@@ -147,10 +148,6 @@ class Simulator:
     def compute_frames(self, idn, example, version):
         out = Output(idn, example.shape, example.simulation_class)
         shape = example.shape
-
-        print(shape.force)
-        print(example.vel)
-        print(example.frames)
 
         # Compute frames readings
         for i in range(Const.MAX_FRAMES):
