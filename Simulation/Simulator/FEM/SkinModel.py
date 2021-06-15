@@ -49,9 +49,9 @@ class SkinModel:
         y_steps = int(height // mesh_size)
 
         # Create a list with each x and y value for the possible nodes
-        x_lsp = np.linspace(0, width, x_steps + 1)
+        x_lsp = np.linspace(0, width, x_steps)
         self.xlsp = x_lsp
-        y_lsp = np.linspace(0, height, y_steps + 1)
+        y_lsp = np.linspace(0, height, y_steps)
         self.ylsp = y_lsp
 
         layer_distance = x_steps if x_steps > y_steps else y_steps

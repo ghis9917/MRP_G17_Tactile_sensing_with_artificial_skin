@@ -1,3 +1,4 @@
+import itertools
 from itertools import product
 from typing import List
 
@@ -9,17 +10,20 @@ import Simulation.Utils.Constants as Const
 
 
 class HeatMap:
-    def __init__(self, w, h, sensors_map):
+    def __init__(self, w, h, number_of_sensors):
         self.width = w
         self.height = h
         self.nodes: np.ndarray = np.zeros(shape=(w, h))
-        self.sensors_map: np.ndarray = sensors_map#self.create_sensor_map(sensors_map)
-        self.sensors: List[Sensor] = self.build_sensors_list()
+        self.sensors_map = self.create_sensor_map(number_of_sensors)
+        # self.sensors_map: np.ndarray = sensors_map#self.create_sensor_map(sensors_map)
+        # self.sensors: List[Sensor] = self.build_sensors_list()
 
-    def create_sensor_map(self, sensors):
+    def create_sensor_map(self, n):
         temp = np.zeros(shape=(self.width, self.height))
-        for sensor in sensors:
-            temp[sensor.x, sensor.y] = 1
+        for _ in range(n):
+            x = np.random.randint(0, self.height)
+            y = np.random.randint(0, self.width)
+            temp[x, y] = 1
         return temp
 
     def check_what_this_is(self, sensors):
@@ -81,18 +85,6 @@ class HeatMap:
             ))
             counter += 1
         return final
-
-    # Recursive version of the fill flood algorithm
-    # def fill_flood(self, row, col, current_single_sensor_list):
-    #     for (i, j) in [(0, -1), (-1, 0), (+1, 0), (0, +1)]:
-    #         try:
-    #             if self.sensors_map[row + i, col + j] == 1 and not (row + i, col + j) in current_single_sensor_list:
-    #                 current_single_sensor_list.append((row + i, col + j))
-    #                 current_single_sensor_list = self.recursive_neighbours_call(row + i, col + j, current_single_sensor_list)
-    #         except Exception as e:
-    #             print(e)
-    #             continue
-    #     return current_single_sensor_list
 
     # Fill flood algorithm with queue, avoids stack overflow for recusive calls
     def fill_flood(self, row, col):
