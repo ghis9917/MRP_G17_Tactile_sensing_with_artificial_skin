@@ -11,6 +11,22 @@ from sklearn.metrics import confusion_matrix
 from GNN_frames import visualize_loss
 from prettytable import PrettyTable
 from sklearn.utils.multiclass import unique_labels
+import numpy as np
+
+## Initial settings ##
+SET_SEED=11
+# Compatibility with CUDA and GPU -> remember to move into GPU
+device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+#make deterministic the stochastic operation to have better comparable tests
+if SET_SEED!=-1:
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(SET_SEED)
+        torch.cuda.manual_seed_all(SET_SEED)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+    np.random.seed(SET_SEED)
+    torch.manual_seed(SET_SEED)
+
 
 def matrix_confusion(y_test, y_pred, model='Model'):
     # create labels for matrix
