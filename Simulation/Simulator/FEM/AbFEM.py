@@ -119,6 +119,7 @@ if __name__ == '__main__':
         sequential_fem(images, layers=1, mesh_size=ms, vis=True)
     else:
         # Process single image
+        print(images[-1].shape)
         run_fem(images[-1], layers=5, max_force=100, mesh_size=ms, vis=True)
 
     sys.exit()
