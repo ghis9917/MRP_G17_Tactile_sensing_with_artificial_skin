@@ -12,6 +12,7 @@ from GNN_frames import visualize_loss
 from prettytable import PrettyTable
 from sklearn.utils.multiclass import unique_labels
 import numpy as np
+from sklearn.metrics import multilabel_confusion_matrix
 
 ## Initial settings ##
 SET_SEED=11
@@ -28,7 +29,7 @@ if SET_SEED!=-1:
     torch.manual_seed(SET_SEED)
 
 
-def matrix_confusion(y_test, y_pred, model='Model'):
+def matrix_confusion_overall(y_test, y_pred, model='Model'):
     # create labels for matrix
     labels = unique_labels(y_test, y_pred)
     # create confusion matrix
@@ -40,6 +41,20 @@ def matrix_confusion(y_test, y_pred, model='Model'):
     plt.xlabel('predicted label')
     plt.savefig('confusion_matrix_' + model + '.jpg')
     plt.show()
+
+def matrix_confusion(y_test, y_pred, title='Model'):
+    labels = ['big/small', 'dynamic/static', 'press/tap', 'dangerous/safe']
+    # create confusion matrix
+    matrix = multilabel_confusion_matrix(y_test, y_pred)
+    for i in range(4):
+        print(matrix[i])
+        sns.heatmap(matrix[i], square=True, annot=True, fmt='d', cbar=False)
+        # set title and labels
+        plt.title('Confusion Matrix_' + labels[i])
+        plt.ylabel('true label')
+        plt.xlabel('predicted label')
+        # plt.savefig('Plots/Classification/confusion_matrix_' + title + '.png')
+        plt.show()
 
 def class_to_label(y):
     y = y.type(torch.uint8)
@@ -260,7 +275,8 @@ class GConvNetBigGraph(nn.Module):
 
         self.loss = nn.BCELoss()
 
-        self.conv1 = GraphConv(window_size, hidden1, bias=True, activation=nn.SiLU())
+        self.conv1 = GraphConv(window_size, 250, bias=True, activation=nn.SiLU())
+        self.conv2 = GraphConv(250, hidden1, bias=True, activation=nn.SiLU())
         self.hidden = nn.Linear(in_features=hidden1, out_features=hidden2, bias=True)
         self.acthidden = nn.SiLU()
         self.output = nn.Linear(in_features=hidden2, out_features=output, bias=True)
@@ -271,6 +287,7 @@ class GConvNetBigGraph(nn.Module):
     def forward(self, graphs, features):
         #define a NN structure using GDL and Torch layers
         x = self.conv1(graphs, features)
+        x = self.conv2(graphs, x) 
         #x = dgl.nn.SetTransformerEncoder(30, 4, 4, 20, dropouth = 0.9, dropouta=0.9)(graphs, features)
         graphs.ndata['h'] = x
         x = dgl.nn.MaxPooling()(graphs, x) #dgl.nn.WeightAndSum(500)(graphs, x)#
@@ -380,7 +397,7 @@ class GConvNetBigGraph(nn.Module):
         for i in range(4):
             print(f'{classes[i]} -> Accuracy: {num_correct_class[0,i]}')
 
-        matrix_confusion(y_test, y_pred)
+        matrix_confusion(y_test, y_pred, 'Big Graph')
 
 
     def save(self, file='GNN_BG.tar'):
