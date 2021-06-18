@@ -54,7 +54,8 @@ def run_fem(image, max_force=10, mesh_size=5.0, layers=2, vis=True, dict=None,
     print("Connecting layers")
     for layer in range(1, layers):
         # E, G, Iy, Iz, J, A
-        tmp_skin.connect_layers(layer - 1, layer, connection_type='Beam', beam_properties=beam_dict[layer])
+        print("LAYERS ", layers)
+        tmp_skin.connect_layers(layer - 1, layer, connection_type='Beam', beam_properties=beam_dict[layer-1])
 
     support_dict = {k: ('None',) for k in range(layers-1)}
     support_dict[layers-1] = ('Fixed',)
@@ -70,11 +71,16 @@ def run_fem(image, max_force=10, mesh_size=5.0, layers=2, vis=True, dict=None,
 
     print("Getting displacements")
     displacement = tmp_skin.get_all_displacements()
-
+    node_loads = []
+    node_titles = []
+    for node in tmp_skin.fem.Nodes:
+        node_titles.append(node)
+        node_loads.append(tmp_skin.fem.GetNode(node).NodeLoads)
     if vis:
         tmp_skin.visualise()
-
-    return displacement
+    print(node_titles)
+    print(node_loads)
+    return displacement, node_titles, node_loads
 
 
 def sequential_fem(image_array, max_force=100, normalize=False, size=(100, 100), mesh_size=5.0, layers=2, vis=True):
@@ -164,6 +170,7 @@ def keys_to_layers(dicti):
         index += 1
     return layer_props
 
+
 def IJA(x):
     """
     This method calculates the moments of inertia and the cross_sectional surface area required for the FEM
@@ -202,6 +209,6 @@ if __name__ == '__main__':
     else:
         # Process single image
         print(images[-1].shape)
-        run_fem(images[-1], layers=5, max_force=100, mesh_size=ms, vis=True, dict=mat_props)
+        run_fem(images[-1], layers=len(mat_props), max_force=100, mesh_size=ms, vis=True, dict=mat_props)
 
     sys.exit()
