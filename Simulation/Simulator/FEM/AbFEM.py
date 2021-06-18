@@ -13,7 +13,7 @@ from Simulation.Simulator.FEM.SkinModel import SkinModel, DEFAULT_PLATE, DEFAULT
 def run_fem(image, max_force=10, mesh_size=5.0, layers=2, vis=True, plate_dict=None, connect_dict=None,
             cm_size=(20, 20)):
     """
-        Runs a single instance of the FEM with an image as input
+    Runs a single instance of the FEM with an image as input
 
     :param image: The 'force' image
     :param max_force: The maximum force that is assigned to the highest image value (255)
@@ -33,25 +33,29 @@ def run_fem(image, max_force=10, mesh_size=5.0, layers=2, vis=True, plate_dict=N
     tmp_skin.create_nodes(size[0], size[1], layers, mesh_size)  # Create the nodes for our model
 
     # For each layer, create plates with their corresponding properties
+    print("Creating plates")
     if plate_dict is None:
         plate_dict = {k: DEFAULT_PLATE for k in range(layers-1)}
     for key, value in plate_dict.items():
         tmp_skin.create_plates(plate_layer=key, properties=value)
 
+    print("Connecting layers")
     for layer in range(1, layers):
         tmp_skin.connect_layers(layer - 1, layer, connection_type='Beam')
 
     support_dict = {k: ('None',) for k in range(layers-1)}
     support_dict[layers-1] = ('Fixed',)
-    print(len(support_dict), support_dict, layers)
+
+    print("Defining support")
     tmp_skin.define_support(support_dict=support_dict)
 
-    tmp_skin.input_to_load(image, max_force, load_type='Node')
-    try:
-        tmp_skin.analyse()
-    except RuntimeWarning:
-        breakpoint()
+    print("Adding load")
+    tmp_skin.input_to_load(image, max_force, load_type='Plate')
 
+    print("Analysing")
+    tmp_skin.analyse()
+
+    print("Getting displacements")
     displacement = tmp_skin.get_all_displacements()
 
     if vis:
