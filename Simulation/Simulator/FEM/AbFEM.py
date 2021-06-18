@@ -10,7 +10,8 @@ import matplotlib.pyplot as plt
 from Simulation.Simulator.FEM.SkinModel import SkinModel, DEFAULT_PLATE, DEFAULT_BEAM
 
 
-def run_fem(image, max_force=10, mesh_size=5.0, layers=2, vis=True, plate_dict=None, connect_dict=None):
+def run_fem(image, max_force=10, mesh_size=5.0, layers=2, vis=True, plate_dict=None, connect_dict=None,
+            cm_size=(20, 20)):
     """
         Runs a single instance of the FEM with an image as input
 
@@ -19,13 +20,16 @@ def run_fem(image, max_force=10, mesh_size=5.0, layers=2, vis=True, plate_dict=N
     :param mesh_size: The coarseness of the plates
     :param layers: The amount of layers on top of each other
     :param vis: Whether to visualize the end displacement
-    :param plate_dict: A dictionary with the layers that have plates and
+    :param plate_dict: A dictionary with the layers that have plates and their material properties
+    :param connect_dict: A dictionary with the beam connections and their material properties
+    :param cm_size: Size of the sheet of skin in centimeter
 
     :return: The results of the FEM analysis
     """
+    cm_2_in = 0.3937
 
     tmp_skin = SkinModel()                                      # Instantiate the model
-    size = (image.shape[0], image.shape[1])                     # Get the size of the model based on the image
+    size = (cm_size[0]*cm_2_in, cm_size[1]*cm_2_in)             # Get the size of the model based on the image
     tmp_skin.create_nodes(size[0], size[1], layers, mesh_size)  # Create the nodes for our model
 
     # For each layer, create plates with their corresponding properties
@@ -37,11 +41,16 @@ def run_fem(image, max_force=10, mesh_size=5.0, layers=2, vis=True, plate_dict=N
     for layer in range(1, layers):
         tmp_skin.connect_layers(layer - 1, layer, connection_type='Beam')
 
-    tmp_skin.define_support()
+    support_dict = {k: ('None',) for k in range(layers-1)}
+    support_dict[layers-1] = ('Fixed',)
+    print(len(support_dict), support_dict, layers)
+    tmp_skin.define_support(support_dict=support_dict)
 
-    tmp_skin.input_to_load(image, max_force)
-
-    tmp_skin.analyse()
+    tmp_skin.input_to_load(image, max_force, load_type='Node')
+    try:
+        tmp_skin.analyse()
+    except RuntimeWarning:
+        breakpoint()
 
     displacement = tmp_skin.get_all_displacements()
 
@@ -62,6 +71,7 @@ def sequential_fem(image_array, max_force=100, normalize=False, size=(100, 100),
     :param mesh_size: The coarseness of the skin plates
     :param layers: The amount of layers on top of each-other
     :param vis: Visualize the last iteration or not
+
     :return: List of analysis results
     """
     total_time = len(image_array)
@@ -119,6 +129,7 @@ if __name__ == '__main__':
         sequential_fem(images, layers=1, mesh_size=ms, vis=True)
     else:
         # Process single image
+        print(images[-1].shape)
         run_fem(images[-1], layers=5, max_force=100, mesh_size=ms, vis=True)
 
     sys.exit()
