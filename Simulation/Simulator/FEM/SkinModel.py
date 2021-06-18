@@ -30,7 +30,7 @@ class SkinModel:
         self.plate_matrix = None
         self.factors = None
 
-    def create_nodes(self, width, height, layers=1, mesh_size=1.0, layer_dist=10):
+    def create_nodes(self, width, height, layers=1, mesh_size=1.0, layer_dist=0.5):
         """
         Creates nodes based on the specified width and height of the skin divided by the mesh size
 
@@ -45,8 +45,10 @@ class SkinModel:
         self.layers, self.mesh_size = layers, mesh_size
 
         # Width and height divided by the mesh size to get our node step size
-        x_steps = int(width // mesh_size)
-        y_steps = int(height // mesh_size)
+        x_steps = round(np.ceil(width / mesh_size))
+        y_steps = round(np.ceil(height / mesh_size))
+
+        print(width, height, width / mesh_size, y_steps, mesh_size)
 
         # Create a list with each x and y value for the possible nodes
         x_lsp = np.linspace(0, width, x_steps)
@@ -201,16 +203,23 @@ class SkinModel:
     def get_node_mat(self):
         return self.node_matrix
 
-    def input_to_load(self, img, max_force, load_type='Plate'):
+    def input_to_load(self, image, max_force, load_type='Plate'):
         """
         Divides the input image in such a way the intensity of the image's values can be translated to pressures
         on nodes or plates
 
-        :param img: The input image with white levels indicating the amount of force
+        :param image: The input image with white levels indicating the amount of force
         :param max_force: The image's range [0-255] will be mapped to the force range [0-max_force]
         :param load_type: The type of load, either plate or nodal load
         :return: None
         """
+        # Reshape image to mesh size
+        dsize = (int(np.ceil(self.width)), int(np.ceil(self.height)))
+        image = cv2.resize(image, dsize=dsize, interpolation=cv2.INTER_CUBIC)
+
+        # Normalize image (test)
+        img = image / np.sum(image)
+
         if load_type == 'Plate':
             if self.plate_matrix is None:
                 raise ValueError('There are no plates to put pressure on!')
@@ -223,7 +232,7 @@ class SkinModel:
 
         for x, y in itertools.product(range(s[0]), range(s[1])):
             x_0 = int(x * x_step)
-            x_1 = int(x * x_step + y_step)
+            x_1 = int(x * x_step + x_step)
             y_0 = int(y * y_step)
             y_1 = int(y * y_step + y_step)
 
@@ -231,13 +240,17 @@ class SkinModel:
             avg = np.mean(window)
 
             if avg != 0.0:
-                force = (avg / 255) * max_force
+                force = avg * max_force
 
                 plat_name = self.plate_matrix[x, y, 0]
-
                 case_name = 'Case 1'  # +plat_name[1:]
-                self.fem.Plates[plat_name].pressures.append([force, case_name])
-                # self.fem.AddNodeLoad(self.node_matrix[x, y, 0], 'FZ', -force)
+
+                if load_type == 'Plate':
+                    self.fem.Plates[plat_name].pressures.append([force, case_name])
+
+                elif load_type == 'Node':
+                    # TODO shift image to center it if we use node loads
+                    self.fem.AddNodeLoad(self.node_matrix[x, y, 0], 'FZ', -force)
 
     # Obsolte function (DON'T DELETE FOR REFERENCE)
     # def __define_support(self, type="Pinned", loc="Sides"):
@@ -287,6 +300,7 @@ class SkinModel:
             'RX': (False, False, False, True, False, False),
             'RY': (False, False, False, False, True, False),
             'RZ': (False, False, False, False, False, True),
+            'None': (False, False, False, False, False, False)
         }
 
         for sup in support:
@@ -336,10 +350,10 @@ class SkinModel:
 
     def visualise(self):
         Visualization.RenderModel(self.fem,
-                                  text_height=0.5,
+                                  text_height=0.1,
                                   deformed_shape=False,
-                                  deformed_scale=300,
-                                  render_loads=False,
+                                  deformed_scale=10,
+                                  render_loads=True,
                                   color_map='dz',
                                   case=None,
                                   combo_name='Combo 1')

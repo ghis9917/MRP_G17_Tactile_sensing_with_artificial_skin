@@ -49,8 +49,10 @@ class Simulator:
                                out.reading]
             viz1 = Visualizer(
                 cv2.resize(self.heatmap.nodes, dsize=(250, 250), interpolation=cv2.INTER_CUBIC))
-            viz1.ani_3D(resized_outputs, cv2.resize(self.heatmap.sensors_map, dsize=(250, 250), interpolation=cv2.INTER_CUBIC))
-            viz1.ani_2D(resized_outputs, cv2.resize(self.heatmap.sensors_map, dsize=(250, 250), interpolation=cv2.INTER_CUBIC))
+            viz1.ani_3D(resized_outputs,
+                        cv2.resize(self.heatmap.sensors_map, dsize=(250, 250), interpolation=cv2.INTER_CUBIC))
+            viz1.ani_2D(resized_outputs,
+                        cv2.resize(self.heatmap.sensors_map, dsize=(250, 250), interpolation=cv2.INTER_CUBIC))
             counter += 1
 
     def initialize_graph(self, num_sensors: int, offset_range: int, noise_range: int,
@@ -71,9 +73,17 @@ class Simulator:
         for big, dynamic, press, dangerous in itertools.product(range(2), range(2), range(2), range(2)):
             for _ in range(num):
                 if big:
-                    shape = Const.BIG_SHAPES[np.random.randint(len(Const.BIG_SHAPES))]
+                    if dynamic:
+                        shape = Const.BIG_SHAPES[np.random.randint(len(Const.BIG_SHAPES))]
+                    else:
+                        shape = (Const.BIG_SHAPES + Const.BIG_STATIC_SHAPES)[
+                            np.random.randint(len(Const.BIG_SHAPES) + len(Const.BIG_STATIC_SHAPES))]
                 else:
-                    shape = Const.SMALL_SHAPES[np.random.randint(len(Const.SMALL_SHAPES))]
+                    if dynamic:
+                        shape = Const.SMALL_SHAPES[np.random.randint(len(Const.SMALL_SHAPES))]
+                    else:
+                        shape = (Const.SMALL_SHAPES + Const.SMALL_STATIC_SHAPES)[
+                            np.random.randint(len(Const.SMALL_SHAPES) + len(Const.SMALL_STATIC_SHAPES))]
 
                 if dynamic:
                     velocity = np.asarray([
@@ -85,16 +95,16 @@ class Simulator:
                 else:
                     velocity = np.asarray([[0], [0]])
 
-
                 if press:
                     frames = np.random.randint(Const.THRESHOLD_PRESS, Const.MAX_FRAMES)
                 else:
                     frames = np.random.randint(0, Const.THRESHOLD_PRESS)
 
+                N_t = self.Pa_to_N(shape)
                 if dangerous:
-                    force = np.random.uniform(Const.THRESHOLD_DANGEROUS, Const.MAX_FORCE)
+                    force = np.random.uniform(N_t, Const.MAX_FORCE)
                 else:
-                    force = np.random.uniform(0, Const.THRESHOLD_DANGEROUS)
+                    force = np.random.uniform(0, N_t)
 
                 center = np.asarray([
                     [np.random.rand() * self.width],
@@ -213,13 +223,22 @@ class Simulator:
                 readings.append(frame[x, y])
         return readings
 
+    def Pa_to_N(self, shape):
+        img = cv2.resize(
+            cv2.imread('../input/' + shape, cv2.IMREAD_GRAYSCALE),
+            dsize=(self.width, self.height),
+            interpolation=cv2.INTER_CUBIC) / 255
+        img = img / np.sum(img)
+        newton_threshold = Const.THRESHOLD_DANGEROUS * ((Const.SIZE / self.width) ** 2) / np.max(img)
+        return newton_threshold
+
 
 if __name__ == "__main__":
     sim = Simulator(
-        w=15,
-        h=15,
+        w=20,
+        h=20,
         number_of_sensors=40
     )
     # sim.simulate(Const.N_SIMULATIONS)
-    sim.simulate(10)
+    sim.simulate(1)
     # sim.show_readings()
