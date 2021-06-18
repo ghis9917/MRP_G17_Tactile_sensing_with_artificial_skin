@@ -7,10 +7,11 @@ import cv2
 import os
 import Simulation.Utils.Constants as Const
 import matplotlib.pyplot as plt
+import pandas
 from Simulation.Simulator.FEM.SkinModel import SkinModel, DEFAULT_PLATE, DEFAULT_BEAM
 
 
-def run_fem(image, max_force=10, mesh_size=5.0, layers=2, vis=True, plate_dict=None, connect_dict=None,
+def run_fem(image, max_force=10, mesh_size=5.0, layers=2, vis=True, dict=None,
             cm_size=(20, 20)):
     """
     Runs a single instance of the FEM with an image as input
@@ -27,21 +28,33 @@ def run_fem(image, max_force=10, mesh_size=5.0, layers=2, vis=True, plate_dict=N
     :return: The results of the FEM analysis
     """
     cm_2_in = 0.3937
+    inch_size = [cm_2_in*cm_size[0], cm_2_in*cm_size[1]]
 
     tmp_skin = SkinModel()                                      # Instantiate the model
-    size = (cm_size[0]*cm_2_in, cm_size[1]*cm_2_in)             # Get the size of the model based on the image
+    size = (inch_size[0], inch_size[1])             # Get the size of the model based on the image
     tmp_skin.create_nodes(size[0], size[1], layers, mesh_size)  # Create the nodes for our model
-
+    plate_dict = {}
+    beam_dict = {}
+    ija = IJA(mesh_size)
+    for key in dict.keys():
+        plate_dict[key] = [dict[key]["t"], dict[key]["E"], dict[key]["nu"]]
+        beam_dict[key] = [dict[key]["E"], dict[key]["G"], ija[0], ija[1], ija[2], ija[3]]
+    print("PLATE DICT:")
+    print(plate_dict)
+    print("BEAM DICT:")
+    print(beam_dict)
     # For each layer, create plates with their corresponding properties
     print("Creating plates")
     if plate_dict is None:
         plate_dict = {k: DEFAULT_PLATE for k in range(layers-1)}
     for key, value in plate_dict.items():
+        # Thickness, E, nu (properties)
         tmp_skin.create_plates(plate_layer=key, properties=value)
 
     print("Connecting layers")
     for layer in range(1, layers):
-        tmp_skin.connect_layers(layer - 1, layer, connection_type='Beam')
+        # E, G, Iy, Iz, J, A
+        tmp_skin.connect_layers(layer - 1, layer, connection_type='Beam', beam_properties=beam_dict[layer])
 
     support_dict = {k: ('None',) for k in range(layers-1)}
     support_dict[layers-1] = ('Fixed',)
@@ -119,21 +132,76 @@ def read_sequence(path, file_pattern):
     return files
 
 
+def read_csv(filepath):
+    """
+    Reads in the material properties for the artificial skin, muscle and fat.
+    E = Young's modulus
+    nu = Poisson's ratio
+    t = thickness in mm
+
+    :return: A dictionary where each key stores a series of properties
+        In the shape: {"MaterialName": [E, nu, thickness]}
+    """
+    dictionary = {}
+    csv = pandas.read_csv(filepath)
+    for i, row in csv.iterrows():
+        dictionary[row["Material"]] = row[1:]
+
+    return dictionary
+
+
+def keys_to_layers(dicti):
+    """
+    Method to structure material properties according to the layers that correspond with them.
+    Required structure for our FEM simulation.
+    :param dicti: A dictionary whose keys should be replaced with their indices
+    :return: A dictionary with indices as keys
+    """
+    layer_props = {}
+    index = 0
+    for key in dicti.keys():
+        layer_props[index] = dicti[key]
+        index += 1
+    return layer_props
+
+def IJA(x):
+    """
+    This method calculates the moments of inertia and the cross_sectional surface area required for the FEM
+    :param: x : mesh_size in inches
+    :return: [Iy, Iz, J, A]
+    """
+
+    # Iy = Iz is the x^4 /12. They are equal because the surface is a square, not a rectangle.
+
+    Iy = Iz = np.power(4, x)/12
+    J = Iy + Iz
+    A = np.square(x)
+
+    return [Iy, Iz, J, A]
+
+
 if __name__ == '__main__':
+    mat_props = read_csv("Material Properties (E, nu, G).csv")
+    print(mat_props)
+    mat_props = keys_to_layers(mat_props)
+    print(mat_props.keys())
+    print(mat_props[0]["nu"])
+
     # Ask user for input
     image_pattern = input("Sequence name: ")
     seq_or_not = input("Sequence (y/n): ")
     ms = float(input("Mesh size: "))
 
     # Read in sequence of images
-    images = read_sequence('../input/', image_pattern)
+    images = read_sequence('../../input/', image_pattern)
 
     if seq_or_not == 'y':
         # Process images through FEM
-        sequential_fem(images, layers=1, mesh_size=ms, vis=True)
+        sequential_fem(images, layers=1, mesh_size=ms, vis=True, dict=mat_props)
+
     else:
         # Process single image
         print(images[-1].shape)
-        run_fem(images[-1], layers=5, max_force=100, mesh_size=ms, vis=True)
+        run_fem(images[-1], layers=5, max_force=100, mesh_size=ms, vis=True, dict=mat_props)
 
     sys.exit()
