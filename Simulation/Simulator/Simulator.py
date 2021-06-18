@@ -202,7 +202,7 @@ class Simulator:
     def write_sensor_adjacency_matrix(self, version):
         with open(f'../out/v{version}/adjacency_matrix.csv', 'w', newline='') as file:
             writer = csv.writer(file)
-            writer.writerow(["S" + str(number) for number in range(self.n_sensors)])
+            writer.writerow(["S" + str(number) for number in range(len(self.heatmap.sensors_map.flatten()))])
 
             for i in range(len(self.heatmap.sensors)):
                 row = []
@@ -218,7 +218,7 @@ class Simulator:
 
     def get_sensors_readings(self, frame):
         readings = []
-        for x, y in itertools.product(range(self.height), range(self.width)):
+        for x, y in itertools.product(range(self.heatmap.height), range(self.heatmap.width)):
             if self.heatmap.sensors_map[x, y]:
                 readings.append(frame[x, y])
         return readings
@@ -239,6 +239,5 @@ if __name__ == "__main__":
         h=20,
         number_of_sensors=40
     )
-    # sim.simulate(Const.N_SIMULATIONS)
     sim.simulate(1)
     # sim.show_readings()
