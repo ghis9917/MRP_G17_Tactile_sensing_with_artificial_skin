@@ -353,8 +353,8 @@ class GConvNetBigGraph(nn.Module):
 
         self.loss = nn.BCELoss()
 
-        self.conv1 = GraphConv(window_size, 250, bias=True, activation=nn.SiLU())
-        self.conv2 = GraphConv(250, hidden1, bias=True, activation=nn.SiLU())
+        self.conv1 = GraphConv(window_size, hidden1, bias=True, activation=nn.SiLU())
+        #self.conv2 = GraphConv(250, hidden1, bias=True, activation=nn.SiLU())
         self.hidden = nn.Linear(in_features=hidden1, out_features=hidden2, bias=True)
         self.acthidden = nn.SiLU()
         self.output = nn.Linear(in_features=hidden2, out_features=output, bias=True)
@@ -365,7 +365,7 @@ class GConvNetBigGraph(nn.Module):
     def forward(self, graphs, features):
         # define a NN structure using GDL and Torch layers
         x = self.conv1(graphs, features)
-        x = self.conv2(graphs, x)
+        #x = self.conv2(graphs, x)
         # x = dgl.nn.SetTransformerEncoder(30, 4, 4, 20, dropouth = 0.9, dropouta=0.9)(graphs, features)
         graphs.ndata['h'] = x
         x = dgl.nn.MaxPooling()(graphs, x)  # dgl.nn.WeightAndSum(500)(graphs, x)#
@@ -404,7 +404,7 @@ class GConvNetBigGraph(nn.Module):
             ex = 0
             running_loss = 0.0
             epoch_loss = 0.0
-            for batched_graph, label in train_dataloader:
+            for batched_graph, label, _ in train_dataloader:
                 batched_graph = batched_graph[0]
                 pred = model(batched_graph,
                              batched_graph.ndata['feature'].float())  # forward computation on the batched graph
@@ -424,7 +424,7 @@ class GConvNetBigGraph(nn.Module):
             num_correct = 0.0
             num_tests = 0.0
             val_loss = 0.0
-            for batched_graph, label in test_dataloader:
+            for batched_graph, label, _ in test_dataloader:
                 batched_graph = batched_graph[0]
                 pred = model(batched_graph,
                              batched_graph.ndata['feature'].float())  # forward computation on the batched graph
@@ -457,7 +457,7 @@ class GConvNetBigGraph(nn.Module):
         test_loss = 0.0
         y_pred = [];
         y_test = []
-        for batched_graph, label in test_dataloader:
+        for batched_graph, label, _ in test_dataloader:
             batched_graph = batched_graph[0]
             pred = model(batched_graph,
                          batched_graph.ndata['feature'].float())  # forward computation on the batched graph
@@ -497,15 +497,31 @@ class GConvNetBigGraph(nn.Module):
 
 
 if __name__ == '__main__':
-    model = GConvNetFrames(device)
+    NET = 'GConvNetBigGraph'
+    if (NET == 'GConvNetFrames'):
+        model = GConvNetFrames(device)
 
-    train_dataloader, \
-    validation_dataloader, \
-    test_dataloader, \
-    info_encoder = get_dataloaders_from_csv(window_size=model.window_size, stride_frac=model.stride_frac)
+        train_dataloader, \
+        validation_dataloader, \
+        test_dataloader, \
+        info_encoder = get_dataloaders_from_csv(window_size=model.window_size, stride_frac=model.stride_frac)
 
-    acc_hist = model.train_loop(train_dataloader, validation_dataloader)
-    plt.plot(acc_hist)
-    plt.show()
-    model_best = GConvNetFrames.load('./GNN_frames.tar')
-    model_best.evaluation(test_dataloader, info_encoder)
+        acc_hist = model.train_loop(train_dataloader, validation_dataloader)
+        plt.plot(acc_hist)
+        plt.show()
+        model_best = GConvNetFrames.load('./GNN_frames.tar')
+        model_best.evaluation(test_dataloader, info_encoder)
+    elif(NET == 'GConvNetBigGraph'):
+        model = GConvNetBigGraph()
+
+        train_dataloader, \
+        validation_dataloader, \
+        test_dataloader, \
+        info_encoder = get_dataloaders_from_csv(window_size=model.window_size, stride_frac=model.stride_frac)
+
+        model.count_parameters()
+        acc_hist = model.train(train_dataloader, validation_dataloader, epochs=1)
+        #plt.plot(acc_hist)
+        #plt.show()
+        #model_best = GConvNetFrames.load('./GNN_BG.tar')
+        #model_best.evaluation(test_dataloader, info_encoder)
