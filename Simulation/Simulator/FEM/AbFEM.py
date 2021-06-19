@@ -11,7 +11,7 @@ import pandas
 from Simulation.Simulator.FEM.SkinModel import SkinModel, DEFAULT_PLATE, DEFAULT_BEAM
 
 
-def run_fem(image, max_force=100, mesh_size=5.0, layers=2, vis=True, dict=None,
+def run_fem(image, max_force=100, mesh_size=5.0, layers=2, vis=True, dicz=None,
             cm_size=(20 + 2*2.54, 20 + 2*2.54)):
     """
     Runs a single instance of the FEM with an image as input
@@ -27,6 +27,11 @@ def run_fem(image, max_force=100, mesh_size=5.0, layers=2, vis=True, dict=None,
 
     :return: The results of the FEM analysis
     """
+
+    if dicz is None:
+        mat_props = read_csv("./FEM/Material Properties (E, nu, G).csv")
+        dicz = keys_to_layers(mat_props)
+
     cm_2_in = 0.3937
     inch_size = [cm_2_in*cm_size[0], cm_2_in*cm_size[1]]
 
@@ -36,9 +41,9 @@ def run_fem(image, max_force=100, mesh_size=5.0, layers=2, vis=True, dict=None,
     plate_dict = {}
     beam_dict = {}
     ija = IJA(mesh_size)
-    for key in dict.keys():
-        plate_dict[key] = [dict[key]["t"], dict[key]["E"], dict[key]["nu"]]
-        beam_dict[key] = [dict[key]["E"], dict[key]["G"], ija[0], ija[1], ija[2], ija[3]]
+    for key in dicz.keys():
+        plate_dict[key] = [dicz[key]["t"], dicz[key]["E"], dicz[key]["nu"]]
+        beam_dict[key] = [dicz[key]["E"], dicz[key]["G"], ija[0], ija[1], ija[2], ija[3]]
     print("PLATE DICT:")
     print(plate_dict)
     print("BEAM DICT:")

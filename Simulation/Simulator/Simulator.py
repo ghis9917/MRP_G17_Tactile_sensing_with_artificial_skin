@@ -160,7 +160,7 @@ class Simulator:
             if i < example.frames:
                 example.update_frame(np.array([[0], [0]]).astype(float))
                 with open(os.devnull, "w") as f, contextlib.redirect_stdout(f):  # Ignore prints in function
-                    displacements = run_fem(
+                    displacements_surface, displacements, force_at_surface_matrix = run_fem(
                         shape.current_map,
                         layers=Const.LAYERS,
                         max_force=shape.force,
