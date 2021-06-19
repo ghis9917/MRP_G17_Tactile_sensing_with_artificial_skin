@@ -108,12 +108,14 @@ class Dataset_from_csv(DGLDataset):
                  list_IDs,
                  window_size=5,
                  stride_frac = 2/3,
+                 test=False,
                  frames=30,
                  path_adj='../Simulation/out/v6/',
                  path_values='../Simulation/out/v7/'):
         self.list_IDs = list_IDs
         self.window_size = window_size
         self.frames_x_gesture = frames
+        self.test = test
         self.path_adj = path_adj
         self.path_values = path_values
         self.dim = len(self.list_IDs)
@@ -122,6 +124,11 @@ class Dataset_from_csv(DGLDataset):
         self.graph = dgl.from_scipy(self.adj, 'weight')
         self.sensors_ids = [f'S{i}' for i in range(40)]  # make it automatic
         self.stride_frac = stride_frac #stride fraction
+        labels = self.data['shape'].unique()
+        self.info = {val: i for i, val in enumerate(labels)}
+
+    def get_info(self):
+        return {key.split('.')[0]: value for key, value in self.info.items()}
 
     def __getitem__(self, i):
         id = self.list_IDs[i]
@@ -148,7 +155,12 @@ class Dataset_from_csv(DGLDataset):
             graph_list.append(g)
 
         labels = torch.Tensor(fp.iloc[0][2:6].values.astype(float))
-        return graph_list,  labels
+        # info = {}
+        if self.test:
+            pressure_velocity = torch.Tensor(fp.iloc[0][-2:].values.astype(float))
+            shape = torch.Tensor([self.info[fp.iloc[0][-3]]])
+            info = torch.cat((shape, pressure_velocity))
+        return graph_list,  labels, info
 
     def __len__(self):
         # Denotes the total number of samples
@@ -159,7 +171,7 @@ def get_dataloaders_from_csv(window_size=5, stride_frac=2/3):
     # Parameters
     params = {'batch_size': 1,  # batches merge the nodes in a single graph
               'shuffle': True,
-              'num_workers': 1}
+              'num_workers': 0}
 
     data = pd.read_csv('../Simulation/out/v7/dataset.csv')
 
@@ -178,8 +190,8 @@ def get_dataloaders_from_csv(window_size=5, stride_frac=2/3):
     # generators
     training_set = Dataset_from_csv(partition['train'], window_size=window_size, stride_frac=stride_frac)
     validation_set = Dataset_from_csv(partition['validation'], window_size=window_size, stride_frac=stride_frac)
-    test_set = Dataset_from_csv(ids_test, window_size=window_size, stride_frac=stride_frac)
+    test_set = Dataset_from_csv(ids_test, window_size=window_size, stride_frac=stride_frac, test=True)
 
     return GraphDataLoader(training_set, **params), \
            GraphDataLoader(validation_set, **params), \
-           GraphDataLoader(test_set, **params)
+           GraphDataLoader(test_set, **params), test_set.get_info()

@@ -134,18 +134,17 @@ def graph_creation(whole=True):
               '\nPlease create directory and add "frames.npy"')
         exit()
     for count, entry in enumerate(training_frames):
-        if count < 10: #TODO REMOVEEEEEEEEEEE later
-            if whole:
-                save_graph(create_whole_graph(entry, count), count)
-            else:
-                graphs.append(create_frame_graph(entry, count))
+        if whole:
+            save_graph(create_whole_graph(entry, count), count)
+        else:
+            graphs.append(create_frame_graph(entry, count))
     if not whole:
         get_embeddings(graphs)
 
 
-if __name__ == "__main__":
-    #graph_creation(whole=True)
-    #graph_creation(whole=False)
+# if __name__ == "__main__":
+#     #graph_creation(whole=True)
+#     #graph_creation(whole=False)
 
 
 
