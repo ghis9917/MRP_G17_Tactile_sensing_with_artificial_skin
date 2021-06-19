@@ -20,6 +20,7 @@ class SkinModel:
 
         self.width = None
         self.height = None
+        self.layer_dist = None
         self.layers = None
         self.mesh_size = None
         self.xlsp = None
@@ -43,6 +44,7 @@ class SkinModel:
         """
         self.width, self.height = width, height
         self.layers, self.mesh_size = layers, mesh_size
+        self.layer_dist = layer_dist
 
         # Width and height divided by the mesh size to get our node step size
         x_steps = round(np.ceil(width / mesh_size))
@@ -218,7 +220,9 @@ class SkinModel:
         image = cv2.resize(image, dsize=dsize, interpolation=cv2.INTER_CUBIC)
 
         # Normalize image (test)
-        img = image / np.sum(image)
+        img = image
+        if np.sum(image) != 0:
+            img = image / np.sum(image)
 
         if load_type == 'Plate':
             if self.plate_matrix is None:
