@@ -11,8 +11,8 @@ import pandas
 from Simulation.Simulator.FEM.SkinModel import SkinModel, DEFAULT_PLATE, DEFAULT_BEAM
 
 
-def run_fem(image, max_force=10, mesh_size=5.0, layers=2, vis=True, dict=None,
-            cm_size=(20, 20)):
+def run_fem(image, max_force=100, mesh_size=5.0, layers=2, vis=True, dict=None,
+            cm_size=(20 + 2*2.54, 20 + 2*2.54)):
     """
     Runs a single instance of the FEM with an image as input
 
@@ -64,23 +64,34 @@ def run_fem(image, max_force=10, mesh_size=5.0, layers=2, vis=True, dict=None,
     tmp_skin.define_support(support_dict=support_dict)
 
     print("Adding load")
-    tmp_skin.input_to_load(image, max_force, load_type='Plate')
+    tmp_skin.input_to_load(image, max_force, load_type='Node')
 
     print("Analysing")
-    tmp_skin.analyse()
+    analysis = tmp_skin.analyse()
 
     print("Getting displacements")
-    displacement = tmp_skin.get_all_displacements()
-    node_loads = []
-    node_titles = []
-    for node in tmp_skin.fem.Nodes:
-        node_titles.append(node)
-        node_loads.append(tmp_skin.fem.GetNode(node).NodeLoads)
+    displacement_surface, displacement_sensors = tmp_skin.get_all_displacements()
+    # node_loads = []
+    # member_loads = []
+    # # PtLoads DistLoads
+    # for node in tmp_skin.fem.Nodes:
+    #     loadsZ = tmp_skin.fem.GetNode(node).RxnFZ
+    #     loadsY = tmp_skin.fem.GetNode(node).RxnFY
+    #     loadsX = tmp_skin.fem.GetNode(node).RxnFX
+    #     node_loads.append((node, loadsX["Combo 1"], loadsY["Combo 1"], loadsZ["Combo 1"]))
+    #
+    # for member in tmp_skin.fem.Members:
+    #     pt = tmp_skin.fem.GetMember(member).PtLoads
+    #     dis = tmp_skin.fem.GetMember(member).DistLoads
+    #     member_loads.append((member, pt, dis))
+
+    # print(member_loads)
+    # print(displacement_surface, displacement_sensors)
     if vis:
         tmp_skin.visualise()
-    print(node_titles)
-    print(node_loads)
-    return displacement, node_titles, node_loads
+    print("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
+    print(displacement_surface, displacement_sensors, tmp_skin.temp_force_matrix, " SIZES")
+    return displacement_surface, displacement_sensors, tmp_skin.temp_force_matrix
 
 
 def sequential_fem(image_array, max_force=100, normalize=False, size=(100, 100), mesh_size=5.0, layers=2, vis=True):
@@ -188,7 +199,7 @@ def IJA(x):
 
 
 if __name__ == '__main__':
-    mat_props = read_csv("Material Properties (E, nu, G).csv")
+    mat_props = read_csv("Simulation/Simulator/FEM/Material Properties (E, nu, G).csv")
     print(mat_props)
     mat_props = keys_to_layers(mat_props)
     print(mat_props.keys())
@@ -200,7 +211,7 @@ if __name__ == '__main__':
     ms = float(input("Mesh size: "))
 
     # Read in sequence of images
-    images = read_sequence('../../input/', image_pattern)
+    images = read_sequence('./Simulation/input/', image_pattern)
 
     if seq_or_not == 'y':
         # Process images through FEM
@@ -209,6 +220,6 @@ if __name__ == '__main__':
     else:
         # Process single image
         print(images[-1].shape)
-        run_fem(images[-1], layers=len(mat_props), max_force=100, mesh_size=ms, vis=True, dict=mat_props)
+        run_fem(images[-1], layers=len(mat_props), max_force=1000, mesh_size=ms, vis=True, dict=mat_props)
 
     sys.exit()

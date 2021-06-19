@@ -31,6 +31,9 @@ class SkinModel:
         self.plate_matrix = None
         self.factors = None
 
+        # TODO hardcoded, make variable -> this is the current amount of nodes (size /1.0inch intervals)
+        self.temp_force_matrix = np.zeros((int(round((20+2*2.54)*0.3937)), int(round((20 + 2*2.54)*0.3937))))
+
     def create_nodes(self, width, height, layers=1, mesh_size=1.0, layer_dist=0.5):
         """
         Creates nodes based on the specified width and height of the skin divided by the mesh size
@@ -205,7 +208,7 @@ class SkinModel:
     def get_node_mat(self):
         return self.node_matrix
 
-    def input_to_load(self, image, max_force, load_type='Plate'):
+    def input_to_load(self, image, max_force, load_type='Node'):
         """
         Divides the input image in such a way the intensity of the image's values can be translated to pressures
         on nodes or plates
@@ -216,7 +219,7 @@ class SkinModel:
         :return: None
         """
         # Reshape image to mesh size
-        dsize = (int(np.ceil(self.width)), int(np.ceil(self.height)))
+        dsize = (int(np.ceil(self.width-1)), int(np.ceil(self.height-1)))
         image = cv2.resize(image, dsize=dsize, interpolation=cv2.INTER_CUBIC)
 
         # Normalize image (test)
@@ -228,33 +231,65 @@ class SkinModel:
             if self.plate_matrix is None:
                 raise ValueError('There are no plates to put pressure on!')
 
-        x_step = self.xlsp[1]
-        y_step = self.ylsp[1]
+        # x_step = self.xlsp[1]
+        # y_step = self.ylsp[1]
+        x_step = image.shape[0]/9
+        y_step = image.shape[1]/9
 
         s = self.plate_matrix.shape
         print(s)
+        if load_type == 'Node':
+            for x, y in itertools.product(range(8), range(8)):
+                x_0 = int(x * x_step)
+                x_1 = int(x * x_step + x_step)
+                y_0 = int(y * y_step)
+                y_1 = int(y * y_step + y_step)
 
-        for x, y in itertools.product(range(s[0]), range(s[1])):
-            x_0 = int(x * x_step)
-            x_1 = int(x * x_step + x_step)
-            y_0 = int(y * y_step)
-            y_1 = int(y * y_step + y_step)
+                window = img[x_0:x_1, y_0:y_1]
+                # TODO changed this to np.sum from np.mean check if correct. Reasoning: Every pixel is already only a fraction of the force
+                avg = np.sum(window)
 
-            window = img[x_0:x_1, y_0:y_1]
-            avg = np.mean(window)
+                if avg != 0.0:
+                    force = avg * max_force
 
-            if avg != 0.0:
-                force = avg * max_force
+                    plat_name = self.plate_matrix[x, y, 0]
+                    case_name = 'Case 1'  # +plat_name[1:]
 
-                plat_name = self.plate_matrix[x, y, 0]
-                case_name = 'Case 1'  # +plat_name[1:]
+                    if load_type == 'Plate':
+                        self.fem.Plates[plat_name].pressures.append([force, case_name])
 
-                if load_type == 'Plate':
-                    self.fem.Plates[plat_name].pressures.append([force, case_name])
+                    elif load_type == 'Node':
+                        # TODO shift image to center it if we use node loads
+                        self.fem.AddNodeLoad(self.node_matrix[y+1, x+1, 0], 'FZ', -force)
+                        self.temp_force_matrix[y+1, x+1] = force
 
-                elif load_type == 'Node':
-                    # TODO shift image to center it if we use node loads
-                    self.fem.AddNodeLoad(self.node_matrix[x, y, 0], 'FZ', -force)
+            for n in self.fem.Nodes:
+                if self.fem.GetNode(n).NodeLoads != []:
+                    print(f"Node loads: {n}", self.fem.GetNode(n).NodeLoads)
+
+
+        else:
+            for x, y in itertools.product(range(s[0]), range(s[1])):
+                x_0 = int(x * x_step)
+                x_1 = int(x * x_step + x_step)
+                y_0 = int(y * y_step)
+                y_1 = int(y * y_step + y_step)
+
+                window = img[x_0:x_1, y_0:y_1]
+                avg = np.mean(window)
+
+                if avg != 0.0:
+                    force = avg * max_force
+
+                    plat_name = self.plate_matrix[x, y, 0]
+                    case_name = 'Case 1'  # +plat_name[1:]
+
+                    if load_type == 'Plate':
+                        self.fem.Plates[plat_name].pressures.append([force, case_name])
+
+                    elif load_type == 'Node':
+                        # TODO shift image to center it if we use node loads
+                        self.fem.AddNodeLoad(self.node_matrix[x, y, 0], 'FZ', -force)
 
     # Obsolte function (DON'T DELETE FOR REFERENCE)
     # def __define_support(self, type="Pinned", loc="Sides"):
@@ -377,9 +412,16 @@ class SkinModel:
         xsize = self.node_matrix.shape[0]
         ysize = self.node_matrix.shape[1]
         displacement_mat = np.zeros(shape=(xsize, ysize))
+        displacement_mat_surface = np.zeros(shape=(xsize, ysize))
+        for i, j in itertools.product(range(xsize), range(ysize)):
+            t_name = self.node_matrix[i, j, 0]
+            tmp_dz = list(self.fem.Nodes[t_name].DZ.values())[0]
+            displacement_mat_surface[i, j] = tmp_dz
+
         for i, j in itertools.product(range(xsize), range(ysize)):
             t_name = self.node_matrix[i, j, depth]
             tmp_dz = list(self.fem.Nodes[t_name].DZ.values())[0]
             displacement_mat[i, j] = tmp_dz
-        return displacement_mat
+
+        return displacement_mat_surface, displacement_mat
 
