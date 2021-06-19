@@ -5,3 +5,15 @@ venv/
 .idea/
 
 *.pyc
+*/__init__.py
+
+Simulation/Simulator/__pycache__/Classes.cpython-38.pyc: needs merge
+Simulation/Simulator/__pycache__/Graph.cpython-38.pyc: needs merge
+Simulation/Simulator/__pycache__/HeatMap.cpython-38.pyc: needs merge
+Simulation/Simulator/__pycache__/Input.cpython-38.pyc: needs merge
+Simulation/Simulator/__pycache__/Output.cpython-38.pyc: needs merge
+Simulation/Simulator/__pycache__/Sensors.cpython-38.pyc: needs merge
+Simulation/Simulator/__pycache__/Shapes.cpython-38.pyc: needs merge
+Simulation/Utils/__pycache__/Constants.cpython-38.pyc: needs merge
+Simulation/Utils/__pycache__/Utils.cpython-38.pyc: needs merge
+Simulation/Visualization/__pycache__/Visualizer.cpython-38.pyc: needs merge
