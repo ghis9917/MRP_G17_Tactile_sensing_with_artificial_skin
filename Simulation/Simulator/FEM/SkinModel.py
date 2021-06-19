@@ -413,6 +413,7 @@ class SkinModel:
         ysize = self.node_matrix.shape[1]
         displacement_mat = np.zeros(shape=(xsize, ysize))
         displacement_mat_surface = np.zeros(shape=(xsize, ysize))
+        displacement_mat_under = np.zeros(shape=(xsize, ysize))
         for i, j in itertools.product(range(xsize), range(ysize)):
             t_name = self.node_matrix[i, j, 0]
             tmp_dz = list(self.fem.Nodes[t_name].DZ.values())[0]
@@ -423,5 +424,10 @@ class SkinModel:
             tmp_dz = list(self.fem.Nodes[t_name].DZ.values())[0]
             displacement_mat[i, j] = tmp_dz
 
-        return displacement_mat_surface[1:-1, 1:-1], displacement_mat[1:-1, 1:-1]
+        for i, j in itertools.product(range(xsize), range(ysize)):
+            t_name = self.node_matrix[i, j, depth+1]
+            tmp_dz = list(self.fem.Nodes[t_name].DZ.values())[0]
+            displacement_mat_under[i, j] = tmp_dz
+
+        return displacement_mat_surface[1:-1, 1:-1], displacement_mat[1:-1, 1:-1], displacement_mat_under[1:-1, 1:-1]
 

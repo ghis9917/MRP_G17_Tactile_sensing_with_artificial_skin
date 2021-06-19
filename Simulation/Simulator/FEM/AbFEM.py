@@ -75,7 +75,7 @@ def run_fem(image, max_force=100, mesh_size=5.0, layers=2, vis=True, dicz=None,
     analysis = tmp_skin.analyse()
 
     print("Getting displacements")
-    displacement_surface, displacement_sensors = tmp_skin.get_all_displacements()
+    displacement_surface, displacement_sensors, displacement_under = tmp_skin.get_all_displacements()
     # node_loads = []
     # member_loads = []
     # # PtLoads DistLoads
@@ -96,7 +96,7 @@ def run_fem(image, max_force=100, mesh_size=5.0, layers=2, vis=True, dicz=None,
         tmp_skin.visualise()
     print("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
     print(displacement_surface, displacement_sensors, tmp_skin.temp_force_matrix, " SIZES")
-    return displacement_surface, displacement_sensors, tmp_skin.temp_force_matrix
+    return displacement_surface, displacement_sensors, displacement_under, tmp_skin.temp_force_matrix
 
 
 def sequential_fem(image_array, max_force=100, normalize=False, size=(100, 100), mesh_size=5.0, layers=2, vis=True):
