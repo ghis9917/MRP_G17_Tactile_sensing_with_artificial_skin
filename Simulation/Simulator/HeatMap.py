@@ -11,20 +11,16 @@ import Simulation.Utils.Constants as Const
 
 class HeatMap:
     def __init__(self, w, h, number_of_sensors):
-        self.width = w
-        self.height = h
-        self.nodes: np.ndarray = np.zeros(shape=(w, h))
-        self.sensors_map = self.create_sensor_map(number_of_sensors)
+        cm_2_in = 0.3937 # Instantiate the model
+        self.width = round(20 * cm_2_in)
+        self.height = round(20 * cm_2_in)
+        self.nodes: np.ndarray = np.zeros(shape=(self.width, self.height))
+        self.sensors_map = self.create_sensor_map()
         # self.sensors_map: np.ndarray = sensors_map#self.create_sensor_map(sensors_map)
         # self.sensors: List[Sensor] = self.build_sensors_list()
 
-    def create_sensor_map(self, n):
-        temp = np.zeros(shape=(self.width, self.height))
-        for _ in range(n):
-            x = np.random.randint(0, self.height)
-            y = np.random.randint(0, self.width)
-            temp[x, y] = 1
-        return temp
+    def create_sensor_map(self, ):
+        return np.ones(shape=(self.width, self.height))
 
     def check_what_this_is(self, sensors):
         temp = []

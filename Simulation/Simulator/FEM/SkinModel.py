@@ -423,5 +423,5 @@ class SkinModel:
             tmp_dz = list(self.fem.Nodes[t_name].DZ.values())[0]
             displacement_mat[i, j] = tmp_dz
 
-        return displacement_mat_surface, displacement_mat
+        return displacement_mat_surface[1:-1, 1:-1], displacement_mat[1:-1, 1:-1]
 
