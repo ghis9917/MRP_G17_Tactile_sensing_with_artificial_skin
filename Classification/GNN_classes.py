@@ -221,7 +221,7 @@ class GConvNetFrames(nn.Module):
 
             model.train()
 
-            for graphs, label in train_dataloader:
+            for graphs, label, _ in train_dataloader:
                 batched_graph = [graph.to(self.device) for graph in graphs]
                 label = label.to(self.device)
                 pred = model(batched_graph)  # forward computation on the batched graph
@@ -251,7 +251,7 @@ class GConvNetFrames(nn.Module):
             num_correct = 0
             num_tests = 0
             val_loss = 0
-            for batched_graph, label in validation_dataloader:
+            for batched_graph, label, _ in validation_dataloader:
                 batched_graph = [graph.to(self.device) for graph in batched_graph]
                 label = label.to(self.device)
                 pred = model(batched_graph)  # forward computation on the batched graph
@@ -504,8 +504,8 @@ if __name__ == '__main__':
     test_dataloader, \
     info_encoder = get_dataloaders_from_csv(window_size=model.window_size, stride_frac=model.stride_frac)
 
-    # acc_hist = model.train_loop(train_dataloader, validation_dataloader)
-    # plt.plot(acc_hist)
-    # plt.show()
+    acc_hist = model.train_loop(train_dataloader, validation_dataloader)
+    plt.plot(acc_hist)
+    plt.show()
     model_best = GConvNetFrames.load('./GNN_frames.tar')
     model_best.evaluation(test_dataloader, info_encoder)

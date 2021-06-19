@@ -155,7 +155,7 @@ class Dataset_from_csv(DGLDataset):
             graph_list.append(g)
 
         labels = torch.Tensor(fp.iloc[0][2:6].values.astype(float))
-        # info = {}
+        info = []
         if self.test:
             pressure_velocity = torch.Tensor(fp.iloc[0][-2:].values.astype(float))
             shape = torch.Tensor([self.info[fp.iloc[0][-3]]])
