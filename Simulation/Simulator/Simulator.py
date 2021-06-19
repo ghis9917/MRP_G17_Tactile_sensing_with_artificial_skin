@@ -134,14 +134,14 @@ class Simulator:
             writer = csv.writer(file)
             writer.writerow(
                 ["id", "frame", "big/small", "dynamic/static", "press/tap", "dangeours/safe"] +
-                ["S" + str(number) for number in range(self.n_sensors)] +
+                ["S" + str(number) for number in range(len(self.heatmap.sensors_map.flatten()))] +
                 ["shape", "pressure", "velocity"]
             )
 
         t1 = time.time()
         pool = mp.Pool(mp.cpu_count())
         for i in range(len(inp)):
-            pool.apply_async(self.compute_frames, args=(i, inp[i], version))
+            pool.apply(self.compute_frames, args=(i, inp[i], version))
         pool.close()
         pool.join()
         t2 = time.time()
@@ -149,7 +149,7 @@ class Simulator:
         print(f"Simulation used {t2 - t1} seconds")
 
         self.write_sensor_map_image(version)
-        # self.write_sensor_adjacency_matrix(version)
+        self.write_sensor_adjacency_matrix(version)
 
     def compute_frames(self, idn, example, version):
         out = Output(idn, example.shape, example.simulation_class)
@@ -160,14 +160,13 @@ class Simulator:
             if i < example.frames:
                 example.update_frame(np.array([[0], [0]]).astype(float))
                 with open(os.devnull, "w") as f, contextlib.redirect_stdout(f):  # Ignore prints in function
-                    displacements_surface, displacements, force_at_surface_matrix = run_fem(
+                    displacements = run_fem(
                         shape.current_map,
                         layers=Const.LAYERS,
                         max_force=shape.force,
                         mesh_size=1,
                         vis=False
                     )
-
                 self.heatmap.nodes += displacements
                 example.update_frame()
 
@@ -205,15 +204,17 @@ class Simulator:
             writer = csv.writer(file)
             writer.writerow(["S" + str(number) for number in range(len(self.heatmap.sensors_map.flatten()))])
 
-            for i in range(len(self.heatmap.sensors)):
+            for i1, j1 in itertools.product(range(self.heatmap.width), range(self.heatmap.height)):
                 row = []
-                for j in range(len(self.heatmap.sensors)):
-                    if i == j:
-                        row.append(0)
+                for i2, j2 in itertools.product(range(self.heatmap.width), range(self.heatmap.height)):
+                    if i1 != i2 or j1 != j2:
+                        dist = math.dist((i1, j1), (i2, j2))
+                        if dist <= math.sqrt(2)+0.1:
+                            row.append(dist)
+                        else:
+                            row.append(0)
                     else:
-                        dist = math.dist(self.heatmap.sensors[i].center, self.heatmap.sensors[j].center)
-                        val = dist if dist < Const.NEAREST_NEIGHBOUR_THRESHOLD else 0
-                        row.append(val)
+                        row.append(0)
                 if len(row) > 0:
                     writer.writerow(row)
 
