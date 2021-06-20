@@ -188,7 +188,7 @@ def IJA(x):
 
 
 if __name__ == '__main__':
-    mat_props = read_csv("Material Properties (E, nu, G).csv")
+    mat_props = read_csv("./FEM/Material Properties (E, nu, G).csv")
     print(mat_props)
     mat_props = keys_to_layers(mat_props)
     print(mat_props.keys())
