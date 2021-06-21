@@ -149,23 +149,21 @@ class Simulator:
                 ["shape", "pressure", "velocity"]
             )
 
+        with open(f'../out/v{version}/v_{version}_smoothout.csv', "w", newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow(
+                ['version', 'id', 'frame', 'displacements_surface', 'displacements',
+                 'displacements_under', 'force_at_surface_matrix'] +
+                ["big/small", "dynamic/static", "press/tap", "dangeours/safe"] +
+                ["shape", "pressure", "velocity"]
+            )
+
         t1 = time.time()
         pool = mp.Pool(mp.cpu_count())
-        self.finish_counter = 0
-
-        def log_results(result):
-            # with open(f'../out/v_{version}_moadf.csv', "w") as f:
-            with datalock:
-                self.out_dataframe = pd.concat([self.out_dataframe, result],
-                                               ignore_index=True)
-                self.finish_counter += 1
-                print(self.finish_counter)
-                self.save_dataframe()
 
         for i in range(len(inp)):
             pool.apply_async(self.compute_frames,
-                             args=(i, inp[i], version),
-                             callback=log_results)
+                             args=(i, inp[i], version))
 
         pool.close()
         pool.join()
@@ -184,7 +182,12 @@ class Simulator:
         out = Output(idn, example.shape, example.simulation_class)
         shape = example.shape
 
-        dataframe_out = []
+        def log_results(result):
+            with open(f'../out/v{version}/v_{version}_smoothout.csv', "a", newline='') as f:
+                writer = csv.writer(f)
+                writer.writerow(result)
+                f.close()
+
         # Compute frames readings
         for i in tqdm(range(Const.MAX_FRAMES)):
             # displacements_surface, displacements = pd.nan, pd.nan
@@ -200,18 +203,25 @@ class Simulator:
                         mesh_size=1,
                         vis=False
                     )
-                    new_row = {
-                        "version": version,
-                         "idn": idn,
-                         "i": i,
-                         "displacements_surface": displacements_surface,
-                         "displacements": displacements,
-                         "displacements_under": displacements_under,
-                         "force_at_surface_matrix": force_at_surface_matrix
-                    }
 
-                dataframe_out.append(new_row)
-                # print(idn, len(self.out_dataframe))
+                    log_results(
+                        [
+                            version,
+                            str(out.id),
+                            i,
+                            displacements_surface,
+                            displacements,
+                            displacements_under,
+                            force_at_surface_matrix,
+                            int(out.simulation_class.big),
+                            int(out.simulation_class.moving),
+                            int(out.simulation_class.press),
+                            int(out.simulation_class.dangerous),
+                            out.shape.shape,
+                            out.shape.force,
+                            np.linalg.norm(example.vel)
+                        ]
+                    )
 
                 self.heatmap.nodes += displacements
                 example.update_frame()
@@ -240,7 +250,6 @@ class Simulator:
                 writer.writerow(first_part + second_part + third_part)
 
         self.output.append(out)
-        return pd.DataFrame(dataframe_out)
 
     def write_sensor_map_image(self, version):
         sensor_placement = Image.fromarray(np.uint8((self.heatmap.sensors_map > 0) * 255), 'L')
@@ -293,5 +302,5 @@ if __name__ == "__main__":
         h=20,
         number_of_sensors=40
     )
-    sim.simulate(157)
+    sim.simulate(1)
     # sim.show_readings()

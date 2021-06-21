@@ -8,10 +8,11 @@ Workings:
     Naive approximation based on experiments on the prototype -> evaluate the experiment data and figure out a ratio or nunmber that
             can be used to create a similar force reduction at the sensor level.
 """
-
+from io import StringIO
 
 import numpy as np
-
+import pandas
+from ast import literal_eval
 
 def clip_matrix(mat, threshold):
     """
@@ -116,3 +117,11 @@ def handle_sequence(input, displ1, displ2, displ3, s=2, m=0, o_s=.4, ratio=0.3, 
         processed_seq_naive.append(temp_naive)
 
     return processed_seq_fem, processed_seq_naive
+
+
+def read_dataframe(data_frame):
+    pass
+
+
+if __name__ == '__main__':
+    read_dataframe('./out/v12/v_12.npy')
