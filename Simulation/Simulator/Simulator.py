@@ -44,8 +44,7 @@ class Simulator:
                                                    "displacements_surface",
                                                    "displacements",
                                                    "displacements_under",
-                                                   "force_at_surface_matrix",
-                                                   "output"])
+                                                   "force_at_surface_matrix"])
 
     def simulate(self, n_simulations) -> None:
         self.input = self.gen_input(n_simulations)
@@ -208,8 +207,7 @@ class Simulator:
                          "displacements_surface": displacements_surface,
                          "displacements": displacements,
                          "displacements_under": displacements_under,
-                         "force_at_surface_matrix": force_at_surface_matrix,
-                         "output": out
+                         "force_at_surface_matrix": force_at_surface_matrix
                     }
 
                 dataframe_out.append(new_row)
@@ -286,6 +284,7 @@ class Simulator:
     def save_dataframe(self):
         version = Const.DATASET_VERSION
         self.out_dataframe.to_csv(f'../out/v{version}/v_{version}_moadf.csv', index=False)
+        np.save(f'../out/v{version}/v_{version}.npy', self.out_dataframe, allow_pickle=True)
 
 
 if __name__ == "__main__":
@@ -294,5 +293,5 @@ if __name__ == "__main__":
         h=20,
         number_of_sensors=40
     )
-    sim.simulate(2)
+    sim.simulate(157)
     # sim.show_readings()
