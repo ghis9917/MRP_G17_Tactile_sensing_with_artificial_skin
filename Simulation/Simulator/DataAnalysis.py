@@ -83,7 +83,7 @@ def convert_to_array(text):
 if __name__ == '__main__':
     da = DataAnalyst('./out/v15/v_15_smoothout.csv')
 
-    da.df.to_csv('./out/v15/v15_clean.csv', ignore_index=True)
+    da.df.to_csv('./out/v15/v15_clean.csv', index=True)
 
     # for i, j in itertools.product(range(8), range(8)):
     #     da.plot_sensor(15, 1, (i, j))
