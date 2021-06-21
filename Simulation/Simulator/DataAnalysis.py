@@ -5,9 +5,22 @@ import seaborn as sns
 import os
 import itertools
 
+
 class DataAnalyst:
     def __init__(self, frame_path):
         self.df = pandas.read_csv(frame_path)
+        self.df.dropna(axis=0, how='any', inplace=True)
+
+        self.df.astype({
+            'id': int,
+            'frame': int,
+            'big/small': int,
+            'dynamic/static': int,
+            'press/tap': int,
+            'dangeours/safe': int
+            })
+
+        self.df.sort_values(by=['id', 'frame'], inplace=True, ignore_index=True)
         self.layers = ['force_at_surface_matrix', 'displacements_surface', 'displacements', 'displacements_under']
         self.experiments = list(self.df['id'].unique())
 
@@ -60,15 +73,21 @@ def convert_to_array(text):
     matrix = np.matrix(text)
     shape = matrix.shape
     div = int(np.sqrt(shape[1]))
-    return matrix.reshape((div, div))
+    if (shape == (1, 100)) | (shape == (1, 64)):
+        return matrix.reshape((div, div))
+    else:
+        print(text)
+        print("-"*20)
 
 
 if __name__ == '__main__':
     da = DataAnalyst('./out/v15/v_15_smoothout.csv')
 
+    da.df.to_csv('./out/v15/v15_clean.csv', ignore_index=True)
+
     # for i, j in itertools.product(range(8), range(8)):
     #     da.plot_sensor(15, 1, (i, j))
 
-    for layer, experiment in itertools.product(range(4), da.experiments):
-        da.plot_heat(layer, experiment)
+    # for layer, experiment in itertools.product(range(4), da.experiments):
+    #     da.plot_heat(layer, experiment)
 
