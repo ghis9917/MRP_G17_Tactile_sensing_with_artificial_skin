@@ -302,5 +302,5 @@ if __name__ == "__main__":
         h=20,
         number_of_sensors=40
     )
-    sim.simulate(1)
+    sim.simulate(150)
     # sim.show_readings()
