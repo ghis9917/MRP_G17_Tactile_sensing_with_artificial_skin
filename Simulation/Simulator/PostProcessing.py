@@ -17,6 +17,7 @@ def clip_matrix(mat, threshold):
     """
     :param mat: Unclipped matrix
     :param threshold: Threshold after which the sensors do not increase their reading
+
     :return: Clipped matrix
     """
     mat[mat > threshold] = threshold
@@ -29,6 +30,7 @@ def gaussian_noise(s, shape, m=0):
     :param m: Mean of the noise, default: m=0
     :param s: Standard deviation of the noise function
     :param shape: The shape you want the noise matrix to be
+
     :return: A matrix with noise values
     """
     return np.random.normal(m, s, shape)
@@ -40,6 +42,7 @@ def offset_matrix(s, shape, m=0):
     :param m: Mean of the noise distribution, default: m=0
     :param s: Standard deviation of the noise function
     :param shape: The shape you want the offset matrix to be
+
     :return: A matrix with offset values
     """
     return np.random.normal(m, s, shape)
@@ -52,6 +55,7 @@ def naive_approximation(mat, ratio):
     :param mat: Input matrix
     :param ratio: The ratio input matrix can be multiplied with that is found to result in a good approximation of the
         resulting force at the depth of the sensors.
+
     :return: The approximated sensor reading matrix
     """
     return mat*ratio
@@ -66,6 +70,7 @@ def fem_approximation(mat, displ0, target_displ, displ2):
     :param displ0: Displacement matrix of the surface layer
     :param target_displ: Displacement matrix of the sensor layer
     :param displ2: Displacement matrix of the bottom layer
+
     :return:
     """
 
@@ -73,10 +78,12 @@ def fem_approximation(mat, displ0, target_displ, displ2):
     relative_displ = target_displ / total_displ
     return mat * relative_displ
 
+
 def handle_sequence(input, displ1, displ2, displ3, s=2, m=0, o_s=.4, ratio=0.3, threshold=35):
     """
     Handles a sequence of inputs and displacements and applies all post_processing steps.
     Assumes the same matrix shape for each instance of all 4 input sequences.
+
     :param input: Sequence of images that were used as input for the FEM (normalized etc)
     :param displ1: Sequence of displacement matrices of the surface layer
     :param displ2: Sequence of displacement matrices of the first layer
@@ -86,6 +93,7 @@ def handle_sequence(input, displ1, displ2, displ3, s=2, m=0, o_s=.4, ratio=0.3, 
     :param o_s: Standard deviation for the offset noise
     :param ratio: The ratio of remaining force found in the experiments
     :param threshold: The threshold at which the sensors stop working
+
     :return: sequence of processed matrices (fem), sequence of processed matrices (naive)
     """
     processed_seq_fem = []

@@ -94,7 +94,7 @@ def run_fem(image, max_force=100, mesh_size=5.0, layers=2, vis=True, dicz=None,
     # print(displacement_surface, displacement_sensors)
     if vis:
         tmp_skin.visualise()
-    print("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
+
     print(displacement_surface, displacement_sensors, tmp_skin.temp_force_matrix, " SIZES")
     return displacement_surface, displacement_sensors, displacement_under, tmp_skin.temp_force_matrix
 
