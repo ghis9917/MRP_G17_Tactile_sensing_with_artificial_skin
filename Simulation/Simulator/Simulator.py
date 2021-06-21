@@ -5,6 +5,7 @@ import itertools
 import math
 import multiprocessing as mp
 import os
+import threading
 import time
 from typing import List
 
@@ -13,6 +14,7 @@ import numpy as np
 from PIL import Image
 from tqdm import tqdm
 
+import pandas as pd
 import Simulation.Utils.Constants as Const
 from Classes import Class
 from Graph import Graph
@@ -24,6 +26,7 @@ from Shapes import Shape
 from Simulation.Simulator.FEM.AbFEM import run_fem
 from Simulation.Visualization.Visualizer import Visualizer
 
+datalock = threading.RLock()
 
 class Simulator:
     def __init__(self, w: int, h: int, number_of_sensors):
@@ -35,11 +38,20 @@ class Simulator:
         self.heatmap = HeatMap(w, h, number_of_sensors)
         print("Heatmap Initialized")
         self.n_sensors: int = number_of_sensors
+        self.out_dataframe = pd.DataFrame(columns=["version",
+                                                   "idn",
+                                                   "i",
+                                                   "displacements_surface",
+                                                   "displacements",
+                                                   "displacements_under",
+                                                   "force_at_surface_matrix",
+                                                   "output"])
 
     def simulate(self, n_simulations) -> None:
         self.input = self.gen_input(n_simulations)
         print("Input Generated")
-        self.output = self.gen_output(self.input)
+        self.gen_output(self.input)
+        # self.save_dataframe()
         print("Output computed & Data Saved")
 
     def show_readings(self) -> None:
@@ -140,10 +152,28 @@ class Simulator:
 
         t1 = time.time()
         pool = mp.Pool(mp.cpu_count())
+        self.finish_counter = 0
+
+        def log_results(result):
+            # with open(f'../out/v_{version}_moadf.csv', "w") as f:
+            with datalock:
+                self.out_dataframe = pd.concat([self.out_dataframe, result],
+                                               ignore_index=True)
+                self.finish_counter += 1
+                print(self.finish_counter)
+                self.save_dataframe()
+
         for i in range(len(inp)):
-            pool.apply(self.compute_frames, args=(i, inp[i], version))
+            pool.apply_async(self.compute_frames,
+                             args=(i, inp[i], version),
+                             callback=log_results)
+
         pool.close()
         pool.join()
+
+        # new_df = pd.DataFrame(data_row)
+        # self.out_dataframe = pd.concat([self.out_dataframe, data_row], axis=0, ignore_index=True)
+
         t2 = time.time()
 
         print(f"Simulation used {t2 - t1} seconds")
@@ -155,8 +185,12 @@ class Simulator:
         out = Output(idn, example.shape, example.simulation_class)
         shape = example.shape
 
+        dataframe_out = []
         # Compute frames readings
         for i in tqdm(range(Const.MAX_FRAMES)):
+            # displacements_surface, displacements = pd.nan, pd.nan
+            # displacements_under, force_at_surface_matrix = pd.nan, pd.nan
+
             if i < example.frames:
                 example.update_frame(np.array([[0], [0]]).astype(float))
                 with open(os.devnull, "w") as f, contextlib.redirect_stdout(f):  # Ignore prints in function
@@ -167,6 +201,20 @@ class Simulator:
                         mesh_size=1,
                         vis=False
                     )
+                    new_row = {
+                        "version": version,
+                         "idn": idn,
+                         "i": i,
+                         "displacements_surface": displacements_surface,
+                         "displacements": displacements,
+                         "displacements_under": displacements_under,
+                         "force_at_surface_matrix": force_at_surface_matrix,
+                         "output": out
+                    }
+
+                dataframe_out.append(new_row)
+                # print(idn, len(self.out_dataframe))
+
                 self.heatmap.nodes += displacements
                 example.update_frame()
 
@@ -194,6 +242,7 @@ class Simulator:
                 writer.writerow(first_part + second_part + third_part)
 
         self.output.append(out)
+        return pd.DataFrame(dataframe_out)
 
     def write_sensor_map_image(self, version):
         sensor_placement = Image.fromarray(np.uint8((self.heatmap.sensors_map > 0) * 255), 'L')
@@ -234,6 +283,10 @@ class Simulator:
         newton_threshold = Const.THRESHOLD_DANGEROUS * ((Const.SIZE / self.width) ** 2) / np.max(img)
         return newton_threshold
 
+    def save_dataframe(self):
+        version = Const.DATASET_VERSION
+        self.out_dataframe.to_csv(f'../out/v{version}/v_{version}_moadf.csv', index=False)
+
 
 if __name__ == "__main__":
     sim = Simulator(
@@ -241,5 +294,5 @@ if __name__ == "__main__":
         h=20,
         number_of_sensors=40
     )
-    sim.simulate(1)
+    sim.simulate(2)
     # sim.show_readings()
