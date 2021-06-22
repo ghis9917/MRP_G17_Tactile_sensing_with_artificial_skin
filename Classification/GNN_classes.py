@@ -555,7 +555,7 @@ class GConvNetBigGraph(nn.Module):
         missclassified_obj(statistics, info_encoder, 'BigGraph')
 
 if __name__ == '__main__':
-    NET = 'GConvNetBigGraph'
+    NET = 'GConvNetFrames'
     if NET == 'GConvNetFrames':
         model = GConvNetFrames(device)
 
@@ -564,10 +564,10 @@ if __name__ == '__main__':
         test_dataloader, \
         info_encoder = get_dataloaders_from_csv(window_size=model.window_size, stride_frac=model.stride_frac)
 
-        # acc_hist = model.train_loop(train_dataloader, validation_dataloader)
-        # plt.plot(acc_hist)
-        # plt.title('accuracy history')
-        # plt.savefig(f'images/accuracy_{model.name}.jpg')
+        acc_hist = model.train_loop(train_dataloader, validation_dataloader)
+        plt.plot(acc_hist)
+        plt.title('accuracy history')
+        plt.savefig(f'images/accuracy_{model.name}.jpg')
         # plt.show()
         model_best = GConvNetFrames.load('./GNN_frames.tar')
         model_best.evaluation(test_dataloader, info_encoder)

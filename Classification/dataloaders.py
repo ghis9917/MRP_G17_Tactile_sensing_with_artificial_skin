@@ -155,7 +155,7 @@ class Dataset_from_csv(DGLDataset):
             #     print('aaa')
             g = copy.deepcopy(self.graph)
             sensors = torch.nan_to_num(sensors)
-            g.ndata['feature'] = sensors / 1000  # 15 # TODO why 15?
+            g.ndata['feature'] = (sensors + 1) / (15 + 1)  # / 1000  # 15
             graph_list.append(g)
 
         labels = torch.Tensor(fp.iloc[0][2:6].values.astype(float))
