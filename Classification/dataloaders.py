@@ -189,7 +189,14 @@ def get_dataloaders_from_csv(window_size=5, stride_frac=2/3):
     val_stop = int(len(ids_train) * 0.8)
 
     partition = {'train': ids_train[:val_stop], 'validation': ids_train[val_stop:]}
-
+    statistics = {0: {'label': 'big-small', 0: 0, 1: 0},
+                  1: {'label': 'dinamic-static', 0: 0, 1: 0},
+                  2: {'label': 'press-tab', 0: 0, 1: 0},
+                  3: {'label': 'dangerous-safe', 0: 0, 1: 0}}
+    labels_class = data.iloc[ids_test].iloc[:,2:6].to_numpy()
+    for ex in labels_class:
+        for i, val in enumerate(ex):
+            statistics[i][val] += 1
     # generators
     training_set = Dataset_from_csv(partition['train'], window_size=window_size, stride_frac=stride_frac)
     validation_set = Dataset_from_csv(partition['validation'], window_size=window_size, stride_frac=stride_frac)

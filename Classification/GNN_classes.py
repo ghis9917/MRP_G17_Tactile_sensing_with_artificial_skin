@@ -13,6 +13,7 @@ from sklearn.utils.multiclass import unique_labels
 import numpy as np
 from sklearn.metrics import multilabel_confusion_matrix
 
+"""
 ## Initial settings ##
 SET_SEED = 69
 # Compatibility with CUDA and GPU -> remember to move into GPU
@@ -26,7 +27,7 @@ if SET_SEED != -1:
         torch.backends.cudnn.benchmark = False
     np.random.seed(SET_SEED)
     torch.manual_seed(SET_SEED)
-
+"""
 
 def visualize_loss(history, model='Model'):
     loss = history["loss"]
@@ -79,8 +80,8 @@ def matrix_confusion(y_test, y_pred, model='Model'):
 def class_to_label(y):
     y = y.type(torch.uint8)
     classes = [['Big', 'Small'], ['Dynamic', 'Static'], ['Press', 'Tap'], ['Dangeours', 'Safe']]
-    return f'{classes[0][y[0, 0].item()]}/{classes[1][y[0, 1].item()]}/{classes[2][y[0, 2].item()]}/{classes[3][y[0, 3].item()]}'
-
+    #return f'{classes[0][y[0, 0].item()]}/{classes[1][y[0, 1].item()]}/{classes[2][y[0, 2].item()]}/{classes[3][y[0, 3].item()]}'
+    return [ classes[0][y[0, 0].item()] , classes[1][y[0, 1].item()], classes[2][y[0, 2].item()], classes[3][y[0, 3].item()] ]
 
 def missclassified_obj(statistics, info_encoder, model='Model'):
     list_shapes = list(info_encoder.values())
@@ -479,7 +480,7 @@ class GConvNetBigGraph(nn.Module):
             num_tests += (label.shape[0] * label.shape[1])
 
             # Confusion matrix
-            y_pred.append(class_to_label(pred > 0.5))
+            y_pred.append(class_to_label(pred))
             y_test.append(class_to_label(label))
 
             # Per Clcass accuracy
@@ -532,8 +533,8 @@ class GConvNetBigGraph(nn.Module):
             num_tests += (label.shape[0] * label.shape[1])
 
             # Confusion matrix
-            y_pred.append(class_to_label(pred > 0.5))
-            y_test.append(class_to_label(label))
+            y_pred.append(pred.int().tolist()[0])
+            y_test.append(label.int().tolist()[0])
 
             # Per class accuracy
             num_correct_class += (pred == label)
@@ -579,9 +580,9 @@ if __name__ == '__main__':
         test_dataloader, \
         info_encoder = get_dataloaders_from_csv(window_size=model.window_size, stride_frac=model.stride_frac)
 
-        model.count_parameters()
-        acc_hist = model.train(train_dataloader, validation_dataloader, epochs=70)
-        plt.plot(acc_hist)
-        plt.show()
+        #model.count_parameters()
+        #acc_hist = model.train(train_dataloader, validation_dataloader, epochs=70)
+        #plt.plot(acc_hist)
+        #plt.show()
         model_best = GConvNetBigGraph.load('./GNN_BG.tar')
         model_best.evaluation_new(test_dataloader, info_encoder)
