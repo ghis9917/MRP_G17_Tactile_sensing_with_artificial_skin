@@ -21,7 +21,8 @@ def clip_matrix(mat, threshold):
 
     :return: Clipped matrix
     """
-    mat[mat > threshold] = threshold
+    # mat[mat > threshold] = threshold
+    mat = np.clip(mat, a_min=np.min(mat), a_max=threshold)
     return mat
 
 
@@ -77,10 +78,10 @@ def fem_approximation(mat, displ0, target_displ, displ2):
 
     total_displ = displ0 + target_displ + displ2
     relative_displ = target_displ / total_displ
-    return mat * relative_displ
+    return mat * np.nan_to_num(relative_displ)
 
 
-def handle_sequence(input, displ1, displ2, displ3, s=2, m=0, o_s=.4, ratio=0.3, threshold=35):
+def handle_sequence(input, displ1, displ2, displ3, s=1, m=0, o_s=.4, ratio=0.3, threshold=10):
     """
     Handles a sequence of inputs and displacements and applies all post_processing steps.
     Assumes the same matrix shape for each instance of all 4 input sequences.
@@ -102,16 +103,20 @@ def handle_sequence(input, displ1, displ2, displ3, s=2, m=0, o_s=.4, ratio=0.3, 
     offset_mat = offset_matrix(o_s, (8, 8), m)
     for i in range(len(input)):
         temp_fem = fem_approximation(input[i], displ1[i], displ2[i], displ3[i])
+        check_nan(temp_fem)
         temp_naive = naive_approximation(input[i], ratio)
 
+        temp_fem += offset_mat
+        check_nan(temp_fem)
+        temp_naive += offset_mat
+
         temp_fem = clip_matrix(temp_fem, threshold)
+        check_nan(temp_fem)
         temp_naive = clip_matrix(temp_naive, threshold)
 
         temp_fem += gaussian_noise(s, temp_fem.shape, m)
+        check_nan(temp_fem)
         temp_naive += gaussian_noise(s, temp_naive.shape, m)
-
-        temp_fem += offset_mat
-        temp_naive += offset_mat
 
         processed_seq_fem.append(temp_fem)
         processed_seq_naive.append(temp_naive)
@@ -119,8 +124,17 @@ def handle_sequence(input, displ1, displ2, displ3, s=2, m=0, o_s=.4, ratio=0.3, 
     return temporal_padding(processed_seq_fem), temporal_padding(processed_seq_naive)
 
 
+def check_nan(matrix):
+    if matrix.any() == np.nan:
+        print("nan found")
+
+
 def str_to_np(s):
-    n = np.matrix(s)
+    try:
+        n = np.matrix(s)
+    except ValueError:
+        print(s)
+        breakpoint()
 
     if n.shape == (1, 100):
         n = n.reshape(10, 10)
@@ -159,53 +173,50 @@ def split_by_idn(df):
 def to_cost_to_csv(results):
     # id,frame,big/small,dynamic/static,press/tap,dangeours/safe, sensors
     # id,frame,big/small,dynamic/static,press/tap,dangeours/safe,S0,S1,S2,S3,S4,S5,S6,S7,S8,S9,S10,S11,S12,S13,S14,S15,S16,S17,S18,S19,S20,S21,S22,S23,S24,S25,S26,S27,S28,S29,S30,S31,S32,S33,S34,S35,S36,S37,S38,S39,S40,S41,S42,S43,S44,S45,S46,S47,S48,S49,S50,S51,S52,S53,S54,S55,S56,S57,S58,S59,S60,S61,S62,S63, shape,pressure,velocity
-    file = open("./Simulation/out/v15/results_fem.csv", 'a+', newline='')
+    file = open("./Simulation/out/v15/results_fem_4.csv", 'w+')
     write = csv.writer(file)
     write.writerow("id,frame,big/small,dynamic/static,press/tap,dangeours/safe,S0,S1,S2,S3,S4,S5,S6,S7,S8,S9,S10,S11,S12,S13,S14,S15,S16,S17,S18,S19,S20,S21,S22,S23,S24,S25,S26,S27,S28,S29,S30,S31,S32,S33,S34,S35,S36,S37,S38,S39,S40,S41,S42,S43,S44,S45,S46,S47,S48,S49,S50,S51,S52,S53,S54,S55,S56,S57,S58,S59,S60,S61,S62,S63,shape,pressure,velocity".split(","))
     for r in results:
-        idn = [r[0]]
-        labels = r[1]
-        processed_seq_fem = r[2]#[0]
-        # processed_seq_naive = r[3]
-        shape = r[3]
-        pressure = r[4]
-        velocity = r[5]
-        length = len(processed_seq_fem)
-        # print("Length = ", length)
-        for i in range(len(processed_seq_fem)):
-            sensor_values = processed_seq_fem[i].flatten().tolist()
-            row = idn + [i] + labels + sensor_values[0] + [shape, pressure, velocity]
-            print(row)
-            write.writerow(row)
-
-
-
+        write.writerow(r)
 
 
 if __name__ == "__main__":
     s = []
     results_by_idn = []
-    df_total = pd.read_csv("Simulation/out/v15/v15_clean.csv")
+    df_total = pd.read_csv("Simulation/out/v15/v_15_smoothout.csv")
+    df_total.dropna(how='any', inplace=True)
 
     df_list = split_by_idn(df_total)
-    for df in tqdm(df_list):
+
+    for idn, df in tqdm(enumerate(df_list)):
         displ_surf_seq = df["displacements_surface"].apply(str_to_np).tolist()
         displ_seq = df["displacements"].apply(str_to_np).tolist()
         displ_und_seq = df["displacements_under"].apply(str_to_np).tolist()
         forc_seq = df["force_at_surface_matrix"].apply(str_to_np).tolist()
         # print(forc_seq)
-        idn = df["id"].iloc[0]
+
         label = list(df[["big/small", "dynamic/static", "press/tap", "dangeours/safe"]].iloc[0])
         shape = df["shape"].iloc[0]
         pressure = df["pressure"].iloc[0]
         velocity = df["velocity"].iloc[0]
 
-        results_by_idn.append([idn, label, temporal_padding(forc_seq), shape, pressure, velocity])
-        # results_by_idn.append([idn, label, handle_sequence(forc_seq, displ_surf_seq,
-        #                                                     displ_seq, displ_und_seq),
+        # temp_pad = temporal_padding(forc_seq)
+
+        temp_pad = handle_sequence(forc_seq, displ_surf_seq, displ_seq, displ_und_seq)[0]
+
+        for frame, matrix in enumerate(temp_pad):
+            new_row = [idn, frame]
+            new_row.extend(label)
+            new_row.extend(matrix.flatten().tolist()[0])
+            new_row.extend([shape, str(pressure), str(velocity)])
+            results_by_idn.append(new_row)
+        # results_by_idn.append([idn, label, ,
         #                                                     shape, pressure, velocity])
         # print(results_by_idn)
     to_cost_to_csv(results_by_idn)
+
+    df = pd.read_csv("./Simulation/out/v15/results_fem_4.csv")
+    print("end!")
 
 
 

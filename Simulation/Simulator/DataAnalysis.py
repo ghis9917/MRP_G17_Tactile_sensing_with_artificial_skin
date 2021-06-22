@@ -1,3 +1,6 @@
+#%%
+import time
+
 import pandas
 import numpy as np
 import matplotlib.pyplot as plt
@@ -6,6 +9,7 @@ import os
 import itertools
 
 
+#%%
 class DataAnalyst:
     def __init__(self, frame_path):
         self.df = pandas.read_csv(frame_path)
@@ -20,12 +24,8 @@ class DataAnalyst:
             'dangeours/safe': int
             })
 
-        self.df.sort_values(by=['id', 'frame'], inplace=True, ignore_index=True)
-        self.layers = ['force_at_surface_matrix', 'displacements_surface', 'displacements', 'displacements_under']
-        self.experiments = list(self.df['id'].unique())
-
-        for disp in self.layers:
-            self.df[disp] = self.df[disp].apply(convert_to_array)
+        self.sensors = [f'S{s}' for s in range(64)]
+        self.experiments = list(sorted(self.df['id'].unique()))
 
     def plot_heat(self, layer, experiment):
         idns = self.df['id'].unique()
@@ -54,21 +54,27 @@ class DataAnalyst:
             plt.savefig(f'./out/v15/images/{experiment}/{layer}_{i}.png')
             plt.close()
 
-    def plot_sensor(self, experiment, layer, sensor):
-        edf = self.df[self.df['id'] == experiment].copy()
-        layer_list = list(edf[self.layers[layer]])
-        x = []
+    def plot_sensor(self, experiment):
+        ex_df = self.df[self.df['id'] == experiment]
+        frames = list(sorted(ex_df['frame'].unique()))
 
-        for time_step in layer_list:
-            sensor_value = time_step[sensor[0], sensor[1]]
-            print(sensor_value)
-            x.append(sensor_value)
-
-        plt.plot(x)
-        plt.title(f'S{sensor}, E{experiment}')
+        X = []
+        for frame in frames:
+            time_frame = ex_df[ex_df['frame'] == frame]
+            sensor_readings = list(time_frame[self.sensors].iloc[0])
+            # print(sensor_readings)
+            X.append(sensor_readings)
+        X = np.array(X)
+        print(X.shape)
+        plt.plot(X)
+        plt.xlabel('Timestep')
+        plt.ylabel('Force (N)')
         plt.show()
 
 
+
+
+#%%
 def convert_to_array(text):
     matrix = np.matrix(text)
     shape = matrix.shape
@@ -79,15 +85,11 @@ def convert_to_array(text):
         print(text)
         print("-"*20)
 
-
+#%%
 if __name__ == '__main__':
-    da = DataAnalyst('./out/v15/v_15_smoothout.csv')
+    da = DataAnalyst('/Users/abeldewit/Documents/GitHub/MRP_G17_Tactile_sensing_with_artificial_skin/Simulation/out/v15/results_fem_3.csv')
 
-    da.df.to_csv('./out/v15/v15_clean.csv', index=True)
-
-    # for i, j in itertools.product(range(8), range(8)):
-    #     da.plot_sensor(15, 1, (i, j))
-
-    # for layer, experiment in itertools.product(range(4), da.experiments):
-    #     da.plot_heat(layer, experiment)
+    for exp in da.experiments:
+        da.plot_sensor(exp)
+        time.sleep(1)
 
