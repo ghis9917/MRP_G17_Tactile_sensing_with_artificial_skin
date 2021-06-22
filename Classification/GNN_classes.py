@@ -14,8 +14,9 @@ from sklearn.utils.multiclass import unique_labels
 import numpy as np
 from sklearn.metrics import multilabel_confusion_matrix
 
+"""
 ## Initial settings ##
-SET_SEED = 11
+SET_SEED = 69
 # Compatibility with CUDA and GPU -> remember to move into GPU
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 # make deterministic the stochastic operation to have better comparable tests
@@ -27,7 +28,7 @@ if SET_SEED != -1:
         torch.backends.cudnn.benchmark = False
     np.random.seed(SET_SEED)
     torch.manual_seed(SET_SEED)
-
+"""
 
 def visualize_loss(history, model='Model'):
     loss = history["loss"]
@@ -80,8 +81,8 @@ def matrix_confusion(y_test, y_pred, model='Model'):
 def class_to_label(y):
     y = y.type(torch.uint8)
     classes = [['Big', 'Small'], ['Dynamic', 'Static'], ['Press', 'Tap'], ['Dangeours', 'Safe']]
-    return f'{classes[0][y[0, 0].item()]}/{classes[1][y[0, 1].item()]}/{classes[2][y[0, 2].item()]}/{classes[3][y[0, 3].item()]}'
-
+    #return f'{classes[0][y[0, 0].item()]}/{classes[1][y[0, 1].item()]}/{classes[2][y[0, 2].item()]}/{classes[3][y[0, 3].item()]}'
+    return [ classes[0][y[0, 0].item()] , classes[1][y[0, 1].item()], classes[2][y[0, 2].item()], classes[3][y[0, 3].item()] ]
 
 def missclassified_obj(statistics, info_encoder, model='Model'):
     list_shapes = list(info_encoder.values())
@@ -402,7 +403,7 @@ class GConvNetBigGraph(nn.Module):
         print(f"Total Trainable Params: {total_params}")
         return total_params
 
-    def train(self, train_dataloader, validation_dataloader, epochs=70, lr=0.001, test_rate=0.8):
+    def train(self, train_dataloader, validation_dataloader, epochs=70, lr=0.0005, test_rate=0.8):
         model = self  # create a model
         optimizer = torch.optim.Adam(model.parameters(), lr=lr)  # choose an optimizer
         ## Configuring the DataLoader ##
@@ -482,7 +483,7 @@ class GConvNetBigGraph(nn.Module):
             num_tests += (label.shape[0] * label.shape[1])
 
             # Confusion matrix
-            y_pred.append(class_to_label(pred > 0.5))
+            y_pred.append(class_to_label(pred))
             y_test.append(class_to_label(label))
 
             # Per Clcass accuracy
@@ -535,8 +536,8 @@ class GConvNetBigGraph(nn.Module):
             num_tests += (label.shape[0] * label.shape[1])
 
             # Confusion matrix
-            y_pred.append(class_to_label(pred > 0.5))
-            y_test.append(class_to_label(label))
+            y_pred.append(pred.int().tolist()[0])
+            y_test.append(label.int().tolist()[0])
 
             # Per class accuracy
             num_correct_class += (pred == label)

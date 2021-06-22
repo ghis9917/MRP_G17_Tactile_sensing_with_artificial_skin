@@ -178,7 +178,7 @@ def get_dataloaders_from_csv(window_size=5, stride_frac=2/3):
               'shuffle': True,
               'num_workers': 0}
 
-    data = pd.read_csv('results_fem_4.csv') # '../Simulation/out/v7/dataset.csv')
+    data = pd.read_csv('results_fem.csv') # '../Simulation/out/v7/dataset.csv')
 
     ids = data['id'].unique()
 
@@ -194,16 +194,10 @@ def get_dataloaders_from_csv(window_size=5, stride_frac=2/3):
                   1: {'label': 'dinamic-static', 0: 0, 1: 0},
                   2: {'label': 'press-tab', 0: 0, 1: 0},
                   3: {'label': 'dangerous-safe', 0: 0, 1: 0}}
-    c = data.iloc[ids_test].iloc[:, 2:6].to_numpy()
-    print(c)
-    for val in c:
-        for i, label in enumerate(val):
-            statistics[i][label] += 1
-    print(statistics)
-    exit()
-
-
-
+    labels_class = data.iloc[ids_test].iloc[:,2:6].to_numpy()
+    for ex in labels_class:
+        for i, val in enumerate(ex):
+            statistics[i][val] += 1
     # generators
     training_set = Dataset_from_csv(partition['train'], data, window_size=window_size, stride_frac=stride_frac)
     validation_set = Dataset_from_csv(partition['validation'], data,  window_size=window_size, stride_frac=stride_frac)
@@ -212,5 +206,3 @@ def get_dataloaders_from_csv(window_size=5, stride_frac=2/3):
     return GraphDataLoader(training_set, **params), \
            GraphDataLoader(validation_set, **params), \
            GraphDataLoader(test_set, **params), test_set.get_info()
-
-
