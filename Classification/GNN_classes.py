@@ -84,8 +84,9 @@ def class_to_label(y):
 
 def missclassified_obj(statistics, info_encoder, model='Model'):
     list_shapes = list(info_encoder.values())
-    max_pressure = 15
-    max_velocity = 7
+    max_pressure = 1300
+    discretization = 13
+    max_velocity = 14
     for c in statistics:
         t = np.squeeze(torch.stack(statistics[c]['obj info']).numpy())
         # binarize shapes and show bars
@@ -101,17 +102,19 @@ def missclassified_obj(statistics, info_encoder, model='Model'):
         bin_pressure = np.bincount(t[:, 1].astype(int))
         if bin_pressure.size < max_pressure:
             bin_pressure = np.pad(bin_pressure, (0, max_pressure - bin_pressure.size), 'constant', constant_values=0)
-        plt.bar(np.arange(max_pressure), bin_pressure)
-        #plt.xticks(list(info_encoder.values()), list(info_encoder.keys()))
+        # discretize bins
+        bin_pressure = np.asarray([np.sum(chunk) for chunk in np.split(bin_pressure, discretization)])
+        plt.bar(np.arange(discretization), bin_pressure)
+        plt.xticks(np.arange(discretization), np.arange(0, max_pressure, max_pressure / discretization))
         plt.title(f'Misclassification for class {statistics[c]["class"]} compared to pressure')
         plt.savefig(f'images/statistics_{statistics[c]["class"]}_pressure_{model}.png')
         plt.close()
         # binarize velocity and show bars
-        bin_velocity = np.bincount(t[:, -1].astype(int))
+        bin_velocity = np.bincount((t[:, -1] * 10).astype(int))
         if bin_velocity.size < max_velocity:
             bin_velocity = np.pad(bin_velocity, (0, max_velocity - bin_velocity.size), 'constant', constant_values=0)
         plt.bar(np.arange(max_velocity), bin_velocity)
-        # plt.xticks(list(info_encoder.values()), list(info_encoder.keys()))
+        plt.xticks(np.arange(max_velocity), np.arange(max_velocity) / 10)
         plt.title(f'Misclassification for class {statistics[c]["class"]} compared to velocity')
         plt.savefig(f'images/statistics_{statistics[c]["class"]}_velocity_{model}.png')
         plt.close()
@@ -506,10 +509,10 @@ if __name__ == '__main__':
         test_dataloader, \
         info_encoder = get_dataloaders_from_csv(window_size=model.window_size, stride_frac=model.stride_frac)
 
-        acc_hist = model.train_loop(train_dataloader, validation_dataloader)
-        plt.plot(acc_hist)
-        plt.title('accuracy history')
-        plt.savefig(f'images/accuracy_{model.name}.jpg')
+        # acc_hist = model.train_loop(train_dataloader, validation_dataloader)
+        # plt.plot(acc_hist)
+        # plt.title('accuracy history')
+        # plt.savefig(f'images/accuracy_{model.name}.jpg')
         # plt.show()
         model_best = GConvNetFrames.load('./GNN_frames.tar')
         model_best.evaluation(test_dataloader, info_encoder)
