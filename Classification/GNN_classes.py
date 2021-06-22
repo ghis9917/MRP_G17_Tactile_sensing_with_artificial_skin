@@ -579,9 +579,9 @@ if __name__ == '__main__':
         test_dataloader, \
         info_encoder = get_dataloaders_from_csv(window_size=model.window_size, stride_frac=model.stride_frac)
 
-        #model.count_parameters()
-        #acc_hist = model.train(train_dataloader, validation_dataloader, epochs=70)
-        #plt.plot(acc_hist)
-        #plt.show()
+        model.count_parameters()
+        acc_hist = model.train(train_dataloader, validation_dataloader, epochs=70)
+        plt.plot(acc_hist)
+        plt.show()
         model_best = GConvNetBigGraph.load('./GNN_BG.tar')
         model_best.evaluation_new(test_dataloader, info_encoder)
