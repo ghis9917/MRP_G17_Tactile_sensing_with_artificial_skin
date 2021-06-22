@@ -11,10 +11,9 @@ import Simulation.Utils.Constants as Const
 
 class Visualizer:
 
-    def __init__(self, heatmap: np.ndarray):
-        self.heatmap: np.ndarray = heatmap.T
+    def __init__(self, size: tuple = (8, 8)):
 
-        X, Y = self.create_xy(heatmap)
+        X, Y = self.create_xy(size)
         self.X: np.ndarray = X  # Xs of mesh
         self.Y: np.ndarray = Y  # Ys of mesh
 
@@ -24,9 +23,16 @@ class Visualizer:
 
         plot_sensors_reading = ax.imshow(animation_heatmap[0].T+animation_heatmap[0].T*sensors_map.T, cmap='gray')
 
+        vmin = np.array(animation_heatmap).min()
+        vmax = np.array(animation_heatmap).max()
+
         def data_gen(framenumber, soln, plot2, X, Y):
             ax.clear()
-            plot2 = ax.imshow(soln[framenumber].T+animation_heatmap[framenumber].T*sensors_map.T, cmap='gray')
+            plot2 = ax.imshow(soln[framenumber].T+animation_heatmap[framenumber].T*sensors_map.T,
+                              cmap='gray',
+                              vmin=vmin,
+                              vmax=vmax
+            )
             return plot2,
 
         anim = animation.FuncAnimation(
@@ -39,11 +45,14 @@ class Visualizer:
             repeat=True
         )
 
-        anim.save('../out/2D.gif', fps = 5, dpi = 80)
+        anim.save(f'./out/2D.gif', fps=5, dpi=80)
 
     def ani_3D(self, animation_heatmap, sensors_map):
+        import pathlib
+        print(pathlib.Path().absolute())
+
         fig = plt.figure()
-        ax = fig.gca(projection='3d')
+        ax = plt.axes(projection='3d')
         plot_args = {
             'rstride': 1,
             'cstride': 1,
@@ -51,7 +60,9 @@ class Visualizer:
             'linewidth': 0.01,
             'antialiased': True,
             'color': 'w',
-            'shade': True
+            'shade': True,
+            'vmin': np.array(animation_heatmap).min(),
+            'vmax': np.array(animation_heatmap).max()
         }
 
         plot_grid = ax.plot_surface(self.X, self.Y, animation_heatmap[0].T, **plot_args)
@@ -60,7 +71,7 @@ class Visualizer:
 
         def data_gen(framenumber, soln, plot1, plot2, X, Y):
             ax.clear()
-            print(framenumber)
+            print('3D', framenumber)
             plot1 = ax.plot_surface(X, Y, soln[framenumber].T, **plot_args)
             plot2 = ax.plot_surface(X, Y, soln[framenumber].T*sensors_map.T, **plot_args)
             ax.set_zlim3d(0, np.max(np.array(soln)))
@@ -76,11 +87,11 @@ class Visualizer:
             repeat=True
         )
 
-        anim.save('../out/3D.gif', fps = 5, dpi = 80)
+        anim.save('./out/3D.gif', fps = 5, dpi = 80)
 
     @staticmethod
-    def create_xy(heatmap: np.ndarray) -> (np.ndarray, np.ndarray):
-        x, y = heatmap.shape
+    def create_xy(heatmap: tuple) -> (np.ndarray, np.ndarray):
+        x, y = heatmap
         return np.meshgrid(np.arange(x), np.arange(y))
 
 

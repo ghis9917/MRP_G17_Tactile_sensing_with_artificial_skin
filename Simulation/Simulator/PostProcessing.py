@@ -22,7 +22,7 @@ def clip_matrix(mat, threshold):
     :return: Clipped matrix
     """
     # mat[mat > threshold] = threshold
-    mat = np.clip(mat, a_min=np.min(mat), a_max=threshold)
+    mat = np.clip(mat, a_min=-1, a_max=15)
     return mat
 
 
@@ -81,7 +81,7 @@ def fem_approximation(mat, displ0, target_displ, displ2):
     return mat * np.nan_to_num(relative_displ)
 
 
-def handle_sequence(input, displ1, displ2, displ3, s=1, m=0, o_s=.4, ratio=0.3, threshold=10):
+def handle_sequence(input, displ1, displ2, displ3, s=.1, m=0, o_s=.05, ratio=0.3, threshold=10):
     """
     Handles a sequence of inputs and displacements and applies all post_processing steps.
     Assumes the same matrix shape for each instance of all 4 input sequences.
@@ -106,22 +106,27 @@ def handle_sequence(input, displ1, displ2, displ3, s=1, m=0, o_s=.4, ratio=0.3, 
         check_nan(temp_fem)
         temp_naive = naive_approximation(input[i], ratio)
 
-        temp_fem += offset_mat
-        check_nan(temp_fem)
-        temp_naive += offset_mat
+        # temp_fem += offset_mat
+        # check_nan(temp_fem)
+        # temp_naive += offset_mat
+
+        # temp_fem += gaussian_noise(s, temp_fem.shape, m)
+        # check_nan(temp_fem)
+        # temp_naive += gaussian_noise(s, temp_naive.shape, m)
 
         temp_fem = clip_matrix(temp_fem, threshold)
         check_nan(temp_fem)
         temp_naive = clip_matrix(temp_naive, threshold)
 
-        temp_fem += gaussian_noise(s, temp_fem.shape, m)
-        check_nan(temp_fem)
-        temp_naive += gaussian_noise(s, temp_naive.shape, m)
-
         processed_seq_fem.append(temp_fem)
         processed_seq_naive.append(temp_naive)
 
-    return temporal_padding(processed_seq_fem), temporal_padding(processed_seq_naive)
+    processed_seq_fem, processed_seq_naive = temporal_padding(processed_seq_fem), temporal_padding(processed_seq_naive)
+
+    processed_seq_fem = [x + gaussian_noise(s, x.shape, m) + offset_mat for x in processed_seq_fem]
+
+    processed_seq_naive = [x + gaussian_noise(s, x.shape, m) + offset_mat for x in processed_seq_naive]
+    return processed_seq_fem, processed_seq_naive
 
 
 def check_nan(matrix):
@@ -173,7 +178,7 @@ def split_by_idn(df):
 def to_cost_to_csv(results):
     # id,frame,big/small,dynamic/static,press/tap,dangeours/safe, sensors
     # id,frame,big/small,dynamic/static,press/tap,dangeours/safe,S0,S1,S2,S3,S4,S5,S6,S7,S8,S9,S10,S11,S12,S13,S14,S15,S16,S17,S18,S19,S20,S21,S22,S23,S24,S25,S26,S27,S28,S29,S30,S31,S32,S33,S34,S35,S36,S37,S38,S39,S40,S41,S42,S43,S44,S45,S46,S47,S48,S49,S50,S51,S52,S53,S54,S55,S56,S57,S58,S59,S60,S61,S62,S63, shape,pressure,velocity
-    file = open("./Simulation/out/v15/results_fem_4.csv", 'w+')
+    file = open("./Simulation/out/v15/results_fem_10.csv", 'w+')
     write = csv.writer(file)
     write.writerow("id,frame,big/small,dynamic/static,press/tap,dangeours/safe,S0,S1,S2,S3,S4,S5,S6,S7,S8,S9,S10,S11,S12,S13,S14,S15,S16,S17,S18,S19,S20,S21,S22,S23,S24,S25,S26,S27,S28,S29,S30,S31,S32,S33,S34,S35,S36,S37,S38,S39,S40,S41,S42,S43,S44,S45,S46,S47,S48,S49,S50,S51,S52,S53,S54,S55,S56,S57,S58,S59,S60,S61,S62,S63,shape,pressure,velocity".split(","))
     for r in results:
@@ -215,7 +220,7 @@ if __name__ == "__main__":
         # print(results_by_idn)
     to_cost_to_csv(results_by_idn)
 
-    df = pd.read_csv("./Simulation/out/v15/results_fem_4.csv")
+    df = pd.read_csv("./Simulation/out/v15/results_fem_10.csv")
     print("end!")
 
 
