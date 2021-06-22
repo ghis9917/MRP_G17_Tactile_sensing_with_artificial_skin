@@ -356,11 +356,13 @@ class GConvNetBigGraph(nn.Module):
 
         self.loss = nn.BCELoss()
 
-        self.conv1 = GraphConv(window_size, hidden1, bias=True, activation=nn.SiLU())
-        #self.conv2 = GraphConv(250, hidden1, bias=True, activation=nn.SiLU())
+        self.conv1 = GraphConv(window_size, 250, bias=True, activation=nn.SiLU())
+        self.conv2 = GraphConv(250, hidden1, bias=True, activation=nn.SiLU())
         self.hidden = nn.Linear(in_features=hidden1, out_features=hidden2, bias=True)
         self.acthidden = nn.SiLU()
-        self.output = nn.Linear(in_features=hidden2, out_features=output, bias=True)
+        self.hidden2 = nn.Linear(in_features=hidden2, out_features=100, bias=True)
+        self.acthidden2 = nn.SiLU()
+        self.output = nn.Linear(in_features=100, out_features=output, bias=True)
         self.actout = nn.Sigmoid()
 
         self.count_parameters()
@@ -368,13 +370,18 @@ class GConvNetBigGraph(nn.Module):
     def forward(self, graphs, features):
         # define a NN structure using GDL and Torch layers
         x = self.conv1(graphs, features)
-        #x = self.conv2(graphs, x)
+        x = self.conv2(graphs, x)
         # x = dgl.nn.SetTransformerEncoder(30, 4, 4, 20, dropouth = 0.9, dropouta=0.9)(graphs, features)
         graphs.ndata['h'] = x
         x = dgl.nn.MaxPooling()(graphs, x)  # dgl.nn.WeightAndSum(500)(graphs, x)#
         x = self.hidden(x)
         x = self.acthidden(x)
         x = nn.Dropout(p=0.2)(x)
+
+        x = self.hidden2(x)
+        x = self.acthidden2(x)
+        x = nn.Dropout(p=0.2)(x)
+
         x = self.output(x)
         x = self.actout(x)
         return x
@@ -498,9 +505,57 @@ class GConvNetBigGraph(nn.Module):
         print('### Model loaded ###')
         return model
 
+    def evaluation_new(self, test_dataloader, info_encoder):
+        model = self
+        print('### Evaluation of the network ###')
+        # calculate the accuracy on test set and print
+        statistics = {0: {'class': 'big-small', 'obj info': []},
+                      1: {'class': 'dynamic-static', 'obj info': []},
+                      2: {'class': 'press-tap', 'obj info': []},
+                      3: {'class': 'dangerous-safe', 'obj info': []}}
+        num_correct_class = torch.zeros((1, 4))
+        num_test_class = torch.zeros((1, 4))
+        num_correct = 0.0
+        num_tests = 0.0
+        test_loss = 0.0
+        y_pred = []
+        y_test = []
+        for batched_graph, label, info in test_dataloader:
+            batched_graph = batched_graph[0]
+            pred = model(batched_graph,
+                         batched_graph.ndata['feature'].float())  # forward computation on the batched graph
+            # Accuracy and Loss
+            J = self.loss(pred, label)
+            test_loss += J.detach().item()
+            pred = pred > 0.5
+            num_correct += (pred == label).sum().item()
+            num_tests += (label.shape[0] * label.shape[1])
+
+            # Confusion matrix
+            y_pred.append(class_to_label(pred > 0.5))
+            y_test.append(class_to_label(label))
+
+            # Per class accuracy
+            num_correct_class += (pred == label)
+            uncorrect_class = np.where((pred == label).to('cpu').numpy() == False)[1]
+            for missclassified in uncorrect_class:
+                statistics[missclassified]['obj info'].append(info)
+            num_test_class += 1
+
+        acc = num_correct / num_tests
+        print(f'Overall accuracy: {acc}, Loss: {test_loss / len(test_dataloader)}')
+
+        num_correct_class = num_correct_class / num_test_class
+        classes = ['Big/Small', 'Dynamic/Static', 'Press/Tap', 'Dangerous/Safe']
+        for i in range(4):
+            print(f'{classes[i]} -> Accuracy: {num_correct_class[0, i]}')
+
+        matrix_confusion(y_test, y_pred, 'BigGraph')
+
+        missclassified_obj(statistics, info_encoder, 'BigGraph')
 
 if __name__ == '__main__':
-    NET = 'GConvNetFrames'
+    NET = 'GConvNetBigGraph'
     if NET == 'GConvNetFrames':
         model = GConvNetFrames(device)
 
@@ -524,9 +579,9 @@ if __name__ == '__main__':
         test_dataloader, \
         info_encoder = get_dataloaders_from_csv(window_size=model.window_size, stride_frac=model.stride_frac)
 
-        model.count_parameters()
-        acc_hist = model.train(train_dataloader, validation_dataloader, epochs=1)
+        #model.count_parameters()
+        #acc_hist = model.train(train_dataloader, validation_dataloader, epochs=70)
         #plt.plot(acc_hist)
         #plt.show()
-        #model_best = GConvNetFrames.load('./GNN_BG.tar')
-        #model_best.evaluation(test_dataloader, info_encoder)
+        model_best = GConvNetBigGraph.load('./GNN_BG.tar')
+        model_best.evaluation_new(test_dataloader, info_encoder)
