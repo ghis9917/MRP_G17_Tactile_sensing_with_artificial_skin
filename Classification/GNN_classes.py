@@ -14,7 +14,7 @@ import numpy as np
 from sklearn.metrics import multilabel_confusion_matrix
 
 ## Initial settings ##
-SET_SEED = 11
+SET_SEED = 69
 # Compatibility with CUDA and GPU -> remember to move into GPU
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 # make deterministic the stochastic operation to have better comparable tests
@@ -399,7 +399,7 @@ class GConvNetBigGraph(nn.Module):
         print(f"Total Trainable Params: {total_params}")
         return total_params
 
-    def train(self, train_dataloader, validation_dataloader, epochs=70, lr=0.001, test_rate=0.8):
+    def train(self, train_dataloader, validation_dataloader, epochs=70, lr=0.0005, test_rate=0.8):
         model = self  # create a model
         optimizer = torch.optim.Adam(model.parameters(), lr=lr)  # choose an optimizer
         ## Configuring the DataLoader ##
