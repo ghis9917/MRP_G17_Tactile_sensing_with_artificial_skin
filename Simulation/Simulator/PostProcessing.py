@@ -200,7 +200,7 @@ if __name__ == "__main__":
         pressure = df["pressure"].iloc[0]
         velocity = df["velocity"].iloc[0]
 
-        results_by_idn.append([idn, label, forc_seq, shape, pressure, velocity])
+        results_by_idn.append([idn, label, temporal_padding(forc_seq), shape, pressure, velocity])
         # results_by_idn.append([idn, label, handle_sequence(forc_seq, displ_surf_seq,
         #                                                     displ_seq, displ_und_seq),
         #                                                     shape, pressure, velocity])
