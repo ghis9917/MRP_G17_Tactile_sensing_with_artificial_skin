@@ -60,7 +60,7 @@ def matrix_confusion_overall(y_test, y_pred, model='Model'):
     # plt.show()
 
 
-def matrix_confusion(y_test, y_pred, title='Model'):
+def matrix_confusion(y_test, y_pred, model='Model'):
     labels = ['big-small', 'dynamic-static', 'press-tap', 'dangerous-safe']
     # create confusion matrix
     matrix = multilabel_confusion_matrix(y_test, y_pred)
@@ -198,7 +198,7 @@ class GConvNetFrames(nn.Module):
             print(graphs, [graph.ndata for graph in graphs])
             return None
 
-    def train_loop(self, train_dataloader, validation_dataloader, epochs=70, lr=0.001):
+    def train_loop(self, train_dataloader, validation_dataloader, epochs=50, lr=0.001):
         model = self  # create a model
         optimizer = torch.optim.Adam(model.parameters(), lr=lr)  # choose an optimizer
         ## Configuring the DataLoader ##
@@ -233,7 +233,7 @@ class GConvNetFrames(nn.Module):
                     running_loss += J.detach().item()
                     ex += batch_size
                     if ex % 300 == 0:
-                        print(f'{epoch + 1}/{ex + 1} -> Loss: {running_loss / 300}')
+                        print(f'{epoch + 1}/{ex + 1}-{num_train} -> Loss: {running_loss / 300}')
                         epoch_loss += running_loss
                         running_loss = 0.0
                 else:
@@ -317,7 +317,7 @@ class GConvNetFrames(nn.Module):
             num_test_class += 1
 
         acc = num_correct / num_tests
-        print(f'Overall accuracy: {acc}, Loss: {test_loss}')
+        print(f'Overall accuracy: {acc}, Loss: {test_loss / len(test_dataloader)}')
 
         num_correct_class = num_correct_class / num_test_class
         classes = ['Big/Small', 'Dynamic/Static', 'Press/Tap', 'Dangerous/Safe']
@@ -497,8 +497,8 @@ class GConvNetBigGraph(nn.Module):
 
 
 if __name__ == '__main__':
-    NET = 'GConvNetBigGraph'
-    if (NET == 'GConvNetFrames'):
+    NET = 'GConvNetFrames'
+    if NET == 'GConvNetFrames':
         model = GConvNetFrames(device)
 
         train_dataloader, \
@@ -508,10 +508,12 @@ if __name__ == '__main__':
 
         acc_hist = model.train_loop(train_dataloader, validation_dataloader)
         plt.plot(acc_hist)
-        plt.show()
+        plt.title('accuracy history')
+        plt.savefig(f'images/accuracy_{model.name}.jpg')
+        # plt.show()
         model_best = GConvNetFrames.load('./GNN_frames.tar')
         model_best.evaluation(test_dataloader, info_encoder)
-    elif(NET == 'GConvNetBigGraph'):
+    elif NET == 'GConvNetBigGraph':
         model = GConvNetBigGraph()
 
         train_dataloader, \

@@ -1,4 +1,5 @@
 import os
+from math import sqrt
 import numpy as np
 import pandas as pd
 import os.path
@@ -110,8 +111,8 @@ class Dataset_from_csv(DGLDataset):
                  stride_frac = 2/3,
                  test=False,
                  frames=30,
-                 path_adj='../Simulation/out/v6/',
-                 path_values='../Simulation/out/v7/'):
+                 path_adj='',  # '../Simulation/out/v6/',
+                 path_values=''):  # '../Simulation/out/v7/'):
         self.list_IDs = list_IDs
         self.window_size = window_size
         self.frames_x_gesture = frames
@@ -119,13 +120,13 @@ class Dataset_from_csv(DGLDataset):
         self.path_adj = path_adj
         self.path_values = path_values
         self.dim = len(self.list_IDs)
-        self.adj = coo_matrix(pd.read_csv(self.path_adj + 'adjacency_matrix.csv').values) / 100
-        self.data = pd.read_csv(self.path_values + 'dataset.csv')
+        self.adj = coo_matrix(pd.read_csv(self.path_adj + 'adjacency_matrix.csv').values) / sqrt(2)
+        self.data = pd.read_csv(self.path_values + 'results_fem.csv')
         self.graph = dgl.from_scipy(self.adj, 'weight')
-        self.sensors_ids = [f'S{i}' for i in range(40)]  # make it automatic
-        self.stride_frac = stride_frac #stride fraction
-        labels = self.data['shape'].unique()
-        self.info = {val: i for i, val in enumerate(labels)}
+        self.sensors_ids = [f'S{i}' for i in range(self.adj.shape[0])]
+        self.stride_frac = stride_frac  # stride fraction
+        labels = self.data['shape'].unique()  # unique object shapes
+        self.info = {val: i for i, val in enumerate(labels)}  # create object shape encoder string->int
 
     def get_info(self):
         return {key.split('.')[0]: value for key, value in self.info.items()}
@@ -150,8 +151,11 @@ class Dataset_from_csv(DGLDataset):
             if sensors.shape[1] < self.window_size:
                 pad = torch.zeros((40, self.window_size - sensors.shape[1]))
                 sensors = torch.cat((sensors, pad), axis=1)
+            # if torch.isnan(sensors):
+            #     print('aaa')
             g = copy.deepcopy(self.graph)
-            g.ndata['feature'] = sensors / 15
+            sensors = torch.nan_to_num(sensors)
+            g.ndata['feature'] = sensors / (1000/64)  # 15 # TODO why 15?
             graph_list.append(g)
 
         labels = torch.Tensor(fp.iloc[0][2:6].values.astype(float))
@@ -173,12 +177,11 @@ def get_dataloaders_from_csv(window_size=5, stride_frac=2/3):
               'shuffle': True,
               'num_workers': 0}
 
-    data = pd.read_csv('../Simulation/out/v7/dataset.csv')
+    data = pd.read_csv('results_fem.csv') # '../Simulation/out/v7/dataset.csv')
 
-    n_gestures = data['id'].iloc[-1]
+    ids = data['id'].unique()
 
     # shuffle and divide
-    ids = np.arange(n_gestures + 1)
     random.shuffle(ids)
     test_stop = int(len(ids) * 0.8)
     ids_train = ids[:test_stop]
