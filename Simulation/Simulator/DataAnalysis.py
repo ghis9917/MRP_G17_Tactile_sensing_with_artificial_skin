@@ -1,10 +1,12 @@
 #%%
 import random
+import re
 import time
 
 import pandas
 import numpy as np
 import matplotlib.pyplot as plt
+import pandas as pd
 import seaborn as sns
 import os
 import itertools
@@ -37,10 +39,12 @@ class DataAnalyst:
 
         x = np.array([np.arange(8) for _ in range(8)]).reshape((8, 8))
 
-        frames = 1
-        for i in range(frames):
+        heat_y = np.array(y).reshape((len(y), 8, 8))
+        vmax = np.array(y).max()
 
-            sns.heatmap(np.array(y).reshape((8, 8)), vmin=0, vmax=np.array(y).max())
+        frames = len(y)
+        for i in range(frames):
+            sns.heatmap(heat_y[i, :, :], vmin=0.0, vmax=vmax)
             plt.title(f'E: {experiment} {name} {labels}')
             # if not os.path.exists(f'./out/v15/images/{experiment}'):
             #     os.mkdir(f'./out/v15/images/{experiment}')
@@ -98,23 +102,37 @@ class DataAnalyst:
             time_frame = ex_df[ex_df['frame'] == frame]
             sensor_readings = np.array(list(time_frame[self.sensors].iloc[0]))
             y.append(sensor_readings)
-        y = np.array(y)
+        y = np.array(y).astype(float)
         return name, labels, y
 
 #%%
 def convert_to_array(text):
-    matrix = np.matrix(text)
-    shape = matrix.shape
-    div = int(np.sqrt(shape[1]))
-    if (shape == (1, 100)) | (shape == (1, 64)):
-        return matrix.reshape((div, div))
-    else:
-        print(text)
-        print("-"*20)
+    pattern = re.compile('(\d{1,2}.\d+e(\+|-)\d\d)')
+    match = re.findall(r'(\d{1,2}.\d+e(\+|-)\d\d)', text)
+
+    sr = []
+    for m in match:
+        sensor = m[0]
+        sr.append(sensor)
+    return sr
+
 
 #%%
 if __name__ == '__main__':
-    da = DataAnalyst('/Users/abeldewit/Documents/GitHub/MRP_G17_Tactile_sensing_with_artificial_skin/Simulation/out/v15/results_fem_10.csv')
+    da = DataAnalyst('/Users/abeldewit/Documents/GitHub/MRP_G17_Tactile_sensing_with_artificial_skin/Simulation/out/v18/results_fem_18.csv')
+
+    if 'S0' not in da.df.columns:
+        print("Only sensor matrices")
+
+        big_sensor_mat = []
+        for i in range(len(da.df)):
+            sr = convert_to_array(da.df['displacements'].iloc[i])
+            big_sensor_mat.append(sr)
+
+        columns = [f'S{i}' for i in range(64)]
+        extra_df = pd.DataFrame(big_sensor_mat, columns=columns)
+
+        da.df = pd.concat([da.df, extra_df], axis=1).reset_index()
 
     shape = input("Shape: ")
 
@@ -127,12 +145,14 @@ if __name__ == '__main__':
             sample = random.randint(0, len(da.experiments))
         else:
             samp_df = da.df[da.df['shape'] == shape]
+            # samp_df = samp_df[samp_df['dynamic/static'] == 1]
+            rannum = random.randint(samp_df.index.min(), samp_df.index.max())
             sample = int(samp_df.iloc[random.randint(0, len(samp_df))]['id'])
 
         exp = da.experiments[sample]
         # da.plot_sensor(exp)
-        # da.plot_3d(exp)
-        da.plot_heat(exp)
+        da.plot_3d(exp)
+        # da.plot_heat(exp)
 
         time.sleep(10)
 

@@ -9,6 +9,7 @@ Workings:
             can be used to create a similar force reduction at the sensor level.
 """
 import csv
+import re
 
 import numpy as np
 import pandas as pd
@@ -135,20 +136,25 @@ def check_nan(matrix):
 
 
 def str_to_np(s):
-    try:
-        n = np.matrix(s)
-    except ValueError:
-        print(s)
-        breakpoint()
+    pattern = re.compile('(\d{1,2}.\d+e(\+|-)\d\d)')
+    match = re.findall(r'(\d{1,2}.\d*(e*(\+|-)\d\d)*)', s)
 
-    if n.shape == (1, 100):
-        n = n.reshape(10, 10)
-        n = n[1:-1, 1:-1]
-    elif n.shape == (1, 64):
-        n = n.reshape((8, 8))
+    sr = []
+    for m in match:
+        sensor = m[0]
+        if sensor == '':
+            sensor = m[2]
+        sr.append(float(sensor))
+    one_d = np.array(sr)
+    if len(one_d) == 64:
+        one_d = one_d.reshape((8, 8))
+    elif len(one_d) == 100:
+        one_d = one_d.reshape((10, 10))
+        one_d = one_d[1:-1, 1:-1]
     else:
-        n = np.zeros((8,8))
-    return n
+        one_d = np.zeros((8, 8))
+    return one_d
+
 
 
 def temporal_padding(seq):
@@ -178,7 +184,7 @@ def split_by_idn(df):
 def to_cost_to_csv(results):
     # id,frame,big/small,dynamic/static,press/tap,dangeours/safe, sensors
     # id,frame,big/small,dynamic/static,press/tap,dangeours/safe,S0,S1,S2,S3,S4,S5,S6,S7,S8,S9,S10,S11,S12,S13,S14,S15,S16,S17,S18,S19,S20,S21,S22,S23,S24,S25,S26,S27,S28,S29,S30,S31,S32,S33,S34,S35,S36,S37,S38,S39,S40,S41,S42,S43,S44,S45,S46,S47,S48,S49,S50,S51,S52,S53,S54,S55,S56,S57,S58,S59,S60,S61,S62,S63, shape,pressure,velocity
-    file = open("./Simulation/out/v15/results_fem_10.csv", 'w+')
+    file = open("./Simulation/out/v18/results_fem_18.csv", 'w+')
     write = csv.writer(file)
     write.writerow("id,frame,big/small,dynamic/static,press/tap,dangeours/safe,S0,S1,S2,S3,S4,S5,S6,S7,S8,S9,S10,S11,S12,S13,S14,S15,S16,S17,S18,S19,S20,S21,S22,S23,S24,S25,S26,S27,S28,S29,S30,S31,S32,S33,S34,S35,S36,S37,S38,S39,S40,S41,S42,S43,S44,S45,S46,S47,S48,S49,S50,S51,S52,S53,S54,S55,S56,S57,S58,S59,S60,S61,S62,S63,shape,pressure,velocity".split(","))
     for r in results:
@@ -188,7 +194,7 @@ def to_cost_to_csv(results):
 if __name__ == "__main__":
     s = []
     results_by_idn = []
-    df_total = pd.read_csv("Simulation/out/v15/v_15_smoothout.csv")
+    df_total = pd.read_csv("Simulation/out/v18/v_18_smoothout.csv")
     df_total.dropna(how='any', inplace=True)
 
     df_list = split_by_idn(df_total)
@@ -212,7 +218,9 @@ if __name__ == "__main__":
         for frame, matrix in enumerate(temp_pad):
             new_row = [idn, frame]
             new_row.extend(label)
-            new_row.extend(matrix.flatten().tolist()[0])
+
+            new_row.extend(matrix.flatten().tolist())
+
             new_row.extend([shape, str(pressure), str(velocity)])
             results_by_idn.append(new_row)
         # results_by_idn.append([idn, label, ,
@@ -220,7 +228,7 @@ if __name__ == "__main__":
         # print(results_by_idn)
     to_cost_to_csv(results_by_idn)
 
-    df = pd.read_csv("./Simulation/out/v15/results_fem_10.csv")
+    df = pd.read_csv("./Simulation/out/v18/results_fem_18.csv")
     print("end!")
 
 
