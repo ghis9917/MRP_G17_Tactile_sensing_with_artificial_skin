@@ -141,6 +141,7 @@ class Simulator:
         version = Const.DATASET_VERSION
         if not os.path.exists(f'../out/v{version}'):
             os.makedirs(f'../out/v{version}')
+
         with open(f'../out/v{version}/dataset.csv', 'w', newline='') as file:
             writer = csv.writer(file)
             writer.writerow(
@@ -158,12 +159,29 @@ class Simulator:
                 ["shape", "pressure", "velocity"]
             )
 
+        async def write_sim(value):
+            import aiofiles
+            async with aiofiles.open(f'../out/v{version}/dataset.csv', 'a', newline='') as f1:
+                for line in value[0]:
+                    writer1 = csv.writer(f1)
+                    await writer1.writerow(line)
+
+            async with aiofiles.open(f'../out/v{version}/v_{version}_smoothout.csv', 'a', newline='') as f2:
+                for line in value[1]:
+                    writer2 = csv.writer(f2)
+                    await writer2.writerow(line)
+
+        def async_write(value):
+            asyncio.run(write_sim(value))
+
         t1 = time.time()
         pool = mp.Pool(mp.cpu_count())
 
+        import asyncio
         for i in range(len(inp)):
             pool.apply_async(self.compute_frames,
-                             args=(i, inp[i], version))
+                             args=(i, inp[i], version),
+                             callback=async_write)
 
         pool.close()
         pool.join()
@@ -181,13 +199,8 @@ class Simulator:
     def compute_frames(self, idn, example, version):
         out = Output(idn, example.shape, example.simulation_class)
         shape = example.shape
-
-        def log_results(result):
-            with open(f'../out/v{version}/v_{version}_smoothout.csv', "a", newline='') as f:
-                writer = csv.writer(f)
-                writer.writerow(result)
-                f.close()
-
+        output_csv_lines = []
+        output_csv_lines_smooth_stuff = []
         # Compute frames readings
         for i in tqdm(range(Const.MAX_FRAMES)):
             # displacements_surface, displacements = pd.nan, pd.nan
@@ -204,8 +217,7 @@ class Simulator:
                         vis=False
                     )
 
-                    log_results(
-                        [
+                    log_results = [
                             version,
                             str(out.id),
                             i,
@@ -221,7 +233,6 @@ class Simulator:
                             out.shape.force,
                             np.linalg.norm(example.vel)
                         ]
-                    )
 
                 self.heatmap.nodes += displacements
                 example.update_frame()
@@ -245,11 +256,11 @@ class Simulator:
 
             third_part = [out.shape.shape, out.shape.force, np.linalg.norm(example.vel)]
 
-            with open(f'../out/v{version}/dataset.csv', 'a', newline='') as f:
-                writer = csv.writer(f)
-                writer.writerow(first_part + second_part + third_part)
+            output_csv_lines.append(first_part + second_part + third_part)
+            output_csv_lines_smooth_stuff.append(log_results)
 
         self.output.append(out)
+        return output_csv_lines, output_csv_lines_smooth_stuff
 
     def write_sensor_map_image(self, version):
         sensor_placement = Image.fromarray(np.uint8((self.heatmap.sensors_map > 0) * 255), 'L')
@@ -302,5 +313,5 @@ if __name__ == "__main__":
         h=20,
         number_of_sensors=40
     )
-    sim.simulate(150)
+    sim.simulate(10)
     # sim.show_readings()
