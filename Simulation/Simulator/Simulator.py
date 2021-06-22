@@ -202,11 +202,11 @@ class Simulator:
         output_csv_lines = []
         output_csv_lines_smooth_stuff = []
         # Compute frames readings
-        for i in tqdm(range(Const.MAX_FRAMES)):
+        for frame in tqdm(range(Const.MAX_FRAMES)):
             # displacements_surface, displacements = pd.nan, pd.nan
             # displacements_under, force_at_surface_matrix = pd.nan, pd.nan
 
-            if i < example.frames:
+            if frame < example.frames:
                 example.update_frame(np.array([[0], [0]]).astype(float))
                 with open(os.devnull, "w") as f, contextlib.redirect_stdout(f):  # Ignore prints in function
                     displacements_surface, displacements, displacements_under, force_at_surface_matrix = run_fem(
@@ -217,25 +217,27 @@ class Simulator:
                         vis=False
                     )
 
-                    log_results = [
-                            version,
-                            str(out.id),
-                            i,
-                            displacements_surface,
-                            displacements,
-                            displacements_under,
-                            force_at_surface_matrix,
-                            int(out.simulation_class.big),
-                            int(out.simulation_class.moving),
-                            int(out.simulation_class.press),
-                            int(out.simulation_class.dangerous),
-                            out.shape.shape,
-                            out.shape.force,
-                            np.linalg.norm(example.vel)
-                        ]
-
                 self.heatmap.nodes += displacements
                 example.update_frame()
+
+                # Save FEM only, padding is handled by Rik's post-processing
+                log_results = [
+                    version,
+                    str(out.id),
+                    frame,
+                    displacements_surface,
+                    displacements,
+                    displacements_under,
+                    force_at_surface_matrix,
+                    int(out.simulation_class.big),
+                    int(out.simulation_class.moving),
+                    int(out.simulation_class.press),
+                    int(out.simulation_class.dangerous),
+                    out.shape.shape,
+                    out.shape.force,
+                    np.linalg.norm(example.vel)
+                ]
+                output_csv_lines_smooth_stuff.append(log_results)
 
             temp = self.heatmap.get_heatmap_copy()
             out.reading.append(temp)
@@ -243,21 +245,20 @@ class Simulator:
 
             first_part = [
                 str(out.id),
-                i,
+                frame,
                 int(out.simulation_class.big),
                 int(out.simulation_class.moving),
                 int(out.simulation_class.press),
                 int(out.simulation_class.dangerous)
             ]
 
-            # sensor_values = out.reading[i]*self.heatmap.sensors_map + self.heatmap.sensors_map
+            # sensor_values = out.reading[frame]*self.heatmap.sensors_map + self.heatmap.sensors_map
             # second_part = list(sensor_values[np.nonzero(sensor_values)] - 1)
-            second_part = self.get_sensors_readings(out.reading[i])
+            second_part = self.get_sensors_readings(out.reading[frame])
 
             third_part = [out.shape.shape, out.shape.force, np.linalg.norm(example.vel)]
 
             output_csv_lines.append(first_part + second_part + third_part)
-            output_csv_lines_smooth_stuff.append(log_results)
 
         self.output.append(out)
         return output_csv_lines, output_csv_lines_smooth_stuff
