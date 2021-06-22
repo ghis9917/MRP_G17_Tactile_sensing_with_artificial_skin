@@ -1,4 +1,5 @@
 import torch.nn.functional as F
+import time
 from dgl.nn.pytorch import GraphConv, Set2Set, GlobalAttentionPooling
 import json
 import dgl
@@ -195,13 +196,14 @@ class GConvNetFrames(nn.Module):
             _, out = self.temporal_layer(torch.reshape(out, (len(graphs), 1, out.shape[-1])))
             for dense in self.dense_layers:
                 out = self.activation(dense(torch.reshape(out, (1, out.shape[-1]))))
+                #out = nn.Dropout(p=0.2)(out)
             return torch.sigmoid(torch.reshape(out, (1, 4)))
         except RuntimeError as e:
             print('sample skipped: ', e)
             print(graphs, [graph.ndata for graph in graphs])
             return None
 
-    def train_loop(self, train_dataloader, validation_dataloader, epochs=50, lr=0.001):
+    def train_loop(self, train_dataloader, validation_dataloader, epochs=10, lr=0.001):
         model = self  # create a model
         optimizer = torch.optim.Adam(model.parameters(), lr=lr)  # choose an optimizer
         ## Configuring the DataLoader ##
@@ -216,6 +218,7 @@ class GConvNetFrames(nn.Module):
         acc_history = []
         best_acc = 0
         for epoch in range(epochs):
+            start_time = time.time()
             print('Epoch ', epoch + 1, 'of ', epochs)
             ex = 0
             skipped = 0
@@ -244,7 +247,7 @@ class GConvNetFrames(nn.Module):
 
             # calculate the loss
             epoch_loss = epoch_loss / (num_train - skipped)
-            print(f"Epoch {epoch + 1}, loss: {epoch_loss}")
+            print(f"Epoch {epoch + 1}, seconds: {time.time() - start_time} -- loss: {epoch_loss}")
             history['loss'].append(epoch_loss)
 
             model.eval()

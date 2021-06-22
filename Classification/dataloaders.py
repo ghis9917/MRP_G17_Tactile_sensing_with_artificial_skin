@@ -107,6 +107,7 @@ def get_dataloaders_from_graph():
 class Dataset_from_csv(DGLDataset):
     def __init__(self,
                  list_IDs,
+                 data,
                  window_size=5,
                  stride_frac = 2/3,
                  test=False,
@@ -121,7 +122,7 @@ class Dataset_from_csv(DGLDataset):
         self.path_values = path_values
         self.dim = len(self.list_IDs)
         self.adj = coo_matrix(pd.read_csv(self.path_adj + 'adjacency_matrix.csv').values) / sqrt(2)
-        self.data = pd.read_csv(self.path_values + 'results_fem.csv')
+        self.data = data, # pd.read_csv(self.path_values + 'results_fem.csv')
         self.graph = dgl.from_scipy(self.adj, 'weight')
         self.sensors_ids = [f'S{i}' for i in range(self.adj.shape[0])]
         self.stride_frac = stride_frac  # stride fraction
@@ -177,7 +178,7 @@ def get_dataloaders_from_csv(window_size=5, stride_frac=2/3):
               'shuffle': True,
               'num_workers': 0}
 
-    data = pd.read_csv('results_fem.csv') # '../Simulation/out/v7/dataset.csv')
+    data = pd.read_csv('results_fem_4.csv') # '../Simulation/out/v7/dataset.csv')
 
     ids = data['id'].unique()
 
@@ -189,12 +190,27 @@ def get_dataloaders_from_csv(window_size=5, stride_frac=2/3):
     val_stop = int(len(ids_train) * 0.8)
 
     partition = {'train': ids_train[:val_stop], 'validation': ids_train[val_stop:]}
+    statistics = {0: {'label': 'big-small', 0: 0, 1: 0},
+                  1: {'label': 'dinamic-static', 0: 0, 1: 0},
+                  2: {'label': 'press-tab', 0: 0, 1: 0},
+                  3: {'label': 'dangerous-safe', 0: 0, 1: 0}}
+    c = data.iloc[ids_test].iloc[:, 2:6].to_numpy()
+    print(c)
+    for val in c:
+        for i, label in enumerate(val):
+            statistics[i][label] += 1
+    print(statistics)
+    exit()
+
+
 
     # generators
-    training_set = Dataset_from_csv(partition['train'], window_size=window_size, stride_frac=stride_frac)
-    validation_set = Dataset_from_csv(partition['validation'], window_size=window_size, stride_frac=stride_frac)
-    test_set = Dataset_from_csv(ids_test, window_size=window_size, stride_frac=stride_frac, test=True)
+    training_set = Dataset_from_csv(partition['train'], data, window_size=window_size, stride_frac=stride_frac)
+    validation_set = Dataset_from_csv(partition['validation'], data,  window_size=window_size, stride_frac=stride_frac)
+    test_set = Dataset_from_csv(ids_test, data, window_size=window_size, stride_frac=stride_frac, test=True)
 
     return GraphDataLoader(training_set, **params), \
            GraphDataLoader(validation_set, **params), \
            GraphDataLoader(test_set, **params), test_set.get_info()
+
+
