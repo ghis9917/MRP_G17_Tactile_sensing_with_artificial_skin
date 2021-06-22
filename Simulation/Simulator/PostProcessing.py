@@ -8,11 +8,11 @@ Workings:
     Naive approximation based on experiments on the prototype -> evaluate the experiment data and figure out a ratio or nunmber that
             can be used to create a similar force reduction at the sensor level.
 """
-from io import StringIO
+import csv
 
 import numpy as np
-import pandas
-from ast import literal_eval
+import pandas as pd
+from tqdm import tqdm
 
 def clip_matrix(mat, threshold):
     """
@@ -99,7 +99,7 @@ def handle_sequence(input, displ1, displ2, displ3, s=2, m=0, o_s=.4, ratio=0.3, 
     """
     processed_seq_fem = []
     processed_seq_naive = []
-    offset_mat = offset_matrix(s, input[0].shape, m)
+    offset_mat = offset_matrix(o_s, (8, 8), m)
     for i in range(len(input)):
         temp_fem = fem_approximation(input[i], displ1[i], displ2[i], displ3[i])
         temp_naive = naive_approximation(input[i], ratio)
@@ -116,12 +116,96 @@ def handle_sequence(input, displ1, displ2, displ3, s=2, m=0, o_s=.4, ratio=0.3, 
         processed_seq_fem.append(temp_fem)
         processed_seq_naive.append(temp_naive)
 
-    return processed_seq_fem, processed_seq_naive
+    return temporal_padding(processed_seq_fem), temporal_padding(processed_seq_naive)
 
 
-def read_dataframe(data_frame):
-    pass
+def str_to_np(s):
+    n = np.matrix(s)
+
+    if n.shape == (1, 100):
+        n = n.reshape(10, 10)
+        n = n[1:-1, 1:-1]
+    elif n.shape == (1, 64):
+        n = n.reshape((8, 8))
+    else:
+        n = np.zeros((8,8))
+    return n
 
 
-if __name__ == '__main__':
-    read_dataframe('./out/v12/v_12.npy')
+def temporal_padding(seq):
+    l = len(seq)
+    index = np.random.randint(30-l)
+    # print("INDEX = ", index)
+    for i in range(30-l):
+        if i < index:
+            el = seq[0]
+            seq.insert(0, el*0.1)
+        elif i >= index:
+            el = seq[i+l-1]
+            seq.append(el*0.1)
+
+    # print("LEN = ", len(seq))
+    return seq
+
+
+def split_by_idn(df):
+    l = []
+    names = df['id'].unique().tolist()  # find unique values
+    for n in names:
+        l.append(df[df['id'] == n])
+    return l
+
+
+def to_cost_to_csv(results):
+    # id,frame,big/small,dynamic/static,press/tap,dangeours/safe, sensors
+    # id,frame,big/small,dynamic/static,press/tap,dangeours/safe,S0,S1,S2,S3,S4,S5,S6,S7,S8,S9,S10,S11,S12,S13,S14,S15,S16,S17,S18,S19,S20,S21,S22,S23,S24,S25,S26,S27,S28,S29,S30,S31,S32,S33,S34,S35,S36,S37,S38,S39,S40,S41,S42,S43,S44,S45,S46,S47,S48,S49,S50,S51,S52,S53,S54,S55,S56,S57,S58,S59,S60,S61,S62,S63, shape,pressure,velocity
+    file = open("./Simulation/out/v15/results_fem.csv", 'a+', newline='')
+    write = csv.writer(file)
+    write.writerow("id,frame,big/small,dynamic/static,press/tap,dangeours/safe,S0,S1,S2,S3,S4,S5,S6,S7,S8,S9,S10,S11,S12,S13,S14,S15,S16,S17,S18,S19,S20,S21,S22,S23,S24,S25,S26,S27,S28,S29,S30,S31,S32,S33,S34,S35,S36,S37,S38,S39,S40,S41,S42,S43,S44,S45,S46,S47,S48,S49,S50,S51,S52,S53,S54,S55,S56,S57,S58,S59,S60,S61,S62,S63,shape,pressure,velocity".split(","))
+    for r in results:
+        idn = [r[0]]
+        labels = r[1]
+        processed_seq_fem = r[2]#[0]
+        # processed_seq_naive = r[3]
+        shape = r[3]
+        pressure = r[4]
+        velocity = r[5]
+        length = len(processed_seq_fem)
+        # print("Length = ", length)
+        for i in range(len(processed_seq_fem)):
+            sensor_values = processed_seq_fem[i].flatten().tolist()
+            row = idn + [i] + labels + sensor_values[0] + [shape, pressure, velocity]
+            print(row)
+            write.writerow(row)
+
+
+
+
+
+if __name__ == "__main__":
+    s = []
+    results_by_idn = []
+    df_total = pd.read_csv("Simulation/out/v15/v15_clean.csv")
+
+    df_list = split_by_idn(df_total)
+    for df in tqdm(df_list):
+        displ_surf_seq = df["displacements_surface"].apply(str_to_np).tolist()
+        displ_seq = df["displacements"].apply(str_to_np).tolist()
+        displ_und_seq = df["displacements_under"].apply(str_to_np).tolist()
+        forc_seq = df["force_at_surface_matrix"].apply(str_to_np).tolist()
+        # print(forc_seq)
+        idn = df["id"].iloc[0]
+        label = list(df[["big/small", "dynamic/static", "press/tap", "dangeours/safe"]].iloc[0])
+        shape = df["shape"].iloc[0]
+        pressure = df["pressure"].iloc[0]
+        velocity = df["velocity"].iloc[0]
+
+        results_by_idn.append([idn, label, forc_seq, shape, pressure, velocity])
+        # results_by_idn.append([idn, label, handle_sequence(forc_seq, displ_surf_seq,
+        #                                                     displ_seq, displ_und_seq),
+        #                                                     shape, pressure, velocity])
+        # print(results_by_idn)
+    to_cost_to_csv(results_by_idn)
+
+
+
