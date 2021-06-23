@@ -190,7 +190,7 @@ def get_dataloaders_from_csv(window_size=5, stride_frac=2/3):
               'shuffle': True,
               'num_workers': 0}
 
-    data = pd.read_csv('results_fem_4.csv') # '../Simulation/out/v7/dataset.csv')
+    data = pd.read_csv('results_fem_4.csv') # 'results_fem_18.csv')
 
     ids = data['id'].unique()
 
