@@ -197,14 +197,14 @@ class GConvNetFrames(nn.Module):
             _, out = self.temporal_layer(torch.reshape(out, (len(graphs), 1, out.shape[-1])))
             for dense in self.dense_layers:
                 out = self.activation(dense(torch.reshape(out, (1, out.shape[-1]))))
-                #out = nn.Dropout(p=0.2)(out)
+                #out = nn.Dropout(p=0.1)(out)
             return torch.sigmoid(torch.reshape(out, (1, 4)))
         except RuntimeError as e:
             print('sample skipped: ', e)
             print(graphs, [graph.ndata for graph in graphs])
             return None
 
-    def train_loop(self, train_dataloader, validation_dataloader, epochs=10, lr=0.001):
+    def train_loop(self, train_dataloader, validation_dataloader, epochs=50, lr=0.001):
         model = self  # create a model
         optimizer = torch.optim.Adam(model.parameters(), lr=lr)  # choose an optimizer
         ## Configuring the DataLoader ##
@@ -558,7 +558,9 @@ class GConvNetBigGraph(nn.Module):
 
         missclassified_obj(statistics, info_encoder, 'BigGraph')
 
+
 if __name__ == '__main__':
+    device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
     NET = 'GConvNetFrames'
     if NET == 'GConvNetFrames':
         model = GConvNetFrames(device)

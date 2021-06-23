@@ -106,8 +106,8 @@ def get_dataloaders_from_graph():
 
 class Dataset_from_csv(DGLDataset):
     def __init__(self,
+                 dataset,
                  list_IDs,
-                 data,
                  window_size=5,
                  stride_frac = 2/3,
                  test=False,
@@ -122,7 +122,7 @@ class Dataset_from_csv(DGLDataset):
         self.path_values = path_values
         self.dim = len(self.list_IDs)
         self.adj = coo_matrix(pd.read_csv(self.path_adj + 'adjacency_matrix.csv').values) / sqrt(2)
-        self.data = data, # pd.read_csv(self.path_values + 'results_fem.csv')
+        self.data = dataset # pd.read_csv(self.path_values + 'results_fem_4.csv')
         self.graph = dgl.from_scipy(self.adj, 'weight')
         self.sensors_ids = [f'S{i}' for i in range(self.adj.shape[0])]
         self.stride_frac = stride_frac  # stride fraction
@@ -172,36 +172,44 @@ class Dataset_from_csv(DGLDataset):
         return self.dim
 
 
+def check_balance(data, ids):
+    statistics = {0: {'label': 'big-small', 0: 0, 1: 0},
+                  1: {'label': 'dinamic-static', 0: 0, 1: 0},
+                  2: {'label': 'press-tab', 0: 0, 1: 0},
+                  3: {'label': 'dangerous-safe', 0: 0, 1: 0}}
+    for val in ids:
+        label = data.loc[data['id'] == val].values[0, 2:6]
+        for i, val in enumerate(label):
+            statistics[i][val] += 1
+    return [val for val in statistics.values()]
+
+
 def get_dataloaders_from_csv(window_size=5, stride_frac=2/3):
     # Parameters
     params = {'batch_size': 1,  # batches merge the nodes in a single graph
               'shuffle': True,
               'num_workers': 0}
 
-    data = pd.read_csv('results_fem.csv') # '../Simulation/out/v7/dataset.csv')
+    data = pd.read_csv('results_fem_4.csv') # '../Simulation/out/v7/dataset.csv')
 
     ids = data['id'].unique()
 
     # shuffle and divide
     random.shuffle(ids)
-    test_stop = int(len(ids) * 0.8)
+    test_stop = int(len(ids) * 0.9)
     ids_train = ids[:test_stop]
     ids_test = ids[test_stop:]
     val_stop = int(len(ids_train) * 0.8)
 
     partition = {'train': ids_train[:val_stop], 'validation': ids_train[val_stop:]}
-    statistics = {0: {'label': 'big-small', 0: 0, 1: 0},
-                  1: {'label': 'dinamic-static', 0: 0, 1: 0},
-                  2: {'label': 'press-tab', 0: 0, 1: 0},
-                  3: {'label': 'dangerous-safe', 0: 0, 1: 0}}
-    labels_class = data.iloc[ids_test].iloc[:,2:6].to_numpy()
-    for ex in labels_class:
-        for i, val in enumerate(ex):
-            statistics[i][val] += 1
+
+    print('training data: ', check_balance(data, ids_train))
+    print('testing data: ', check_balance(data, ids_test))
+
     # generators
-    training_set = Dataset_from_csv(partition['train'], data, window_size=window_size, stride_frac=stride_frac)
-    validation_set = Dataset_from_csv(partition['validation'], data,  window_size=window_size, stride_frac=stride_frac)
-    test_set = Dataset_from_csv(ids_test, data, window_size=window_size, stride_frac=stride_frac, test=True)
+    training_set = Dataset_from_csv(data, partition['train'], window_size=window_size, stride_frac=stride_frac)
+    validation_set = Dataset_from_csv(data, partition['validation'],  window_size=window_size, stride_frac=stride_frac)
+    test_set = Dataset_from_csv(data, ids_test, window_size=window_size, stride_frac=stride_frac, test=True)
 
     return GraphDataLoader(training_set, **params), \
            GraphDataLoader(validation_set, **params), \
