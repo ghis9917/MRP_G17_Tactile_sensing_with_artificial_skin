@@ -184,7 +184,7 @@ def split_by_idn(df):
 def to_cost_to_csv(results):
     # id,frame,big/small,dynamic/static,press/tap,dangeours/safe, sensors
     # id,frame,big/small,dynamic/static,press/tap,dangeours/safe,S0,S1,S2,S3,S4,S5,S6,S7,S8,S9,S10,S11,S12,S13,S14,S15,S16,S17,S18,S19,S20,S21,S22,S23,S24,S25,S26,S27,S28,S29,S30,S31,S32,S33,S34,S35,S36,S37,S38,S39,S40,S41,S42,S43,S44,S45,S46,S47,S48,S49,S50,S51,S52,S53,S54,S55,S56,S57,S58,S59,S60,S61,S62,S63, shape,pressure,velocity
-    file = open("./Simulation/out/v18/results_fem_18.csv", 'w+')
+    file = open("./Simulation/out/v18/results_fem_19.csv", 'w+')
     write = csv.writer(file)
     write.writerow("id,frame,big/small,dynamic/static,press/tap,dangeours/safe,S0,S1,S2,S3,S4,S5,S6,S7,S8,S9,S10,S11,S12,S13,S14,S15,S16,S17,S18,S19,S20,S21,S22,S23,S24,S25,S26,S27,S28,S29,S30,S31,S32,S33,S34,S35,S36,S37,S38,S39,S40,S41,S42,S43,S44,S45,S46,S47,S48,S49,S50,S51,S52,S53,S54,S55,S56,S57,S58,S59,S60,S61,S62,S63,shape,pressure,velocity".split(","))
     for r in results:
@@ -211,12 +211,14 @@ if __name__ == "__main__":
         pressure = df["pressure"].iloc[0]
         velocity = df["velocity"].iloc[0]
 
+        new_id_num = int(df['id'].iloc[0])
+
         # temp_pad = temporal_padding(forc_seq)
 
         temp_pad = handle_sequence(forc_seq, displ_surf_seq, displ_seq, displ_und_seq)[0]
 
         for frame, matrix in enumerate(temp_pad):
-            new_row = [idn, frame]
+            new_row = [new_id_num, frame]
             new_row.extend(label)
 
             new_row.extend(matrix.flatten().tolist())
@@ -228,7 +230,7 @@ if __name__ == "__main__":
         # print(results_by_idn)
     to_cost_to_csv(results_by_idn)
 
-    df = pd.read_csv("./Simulation/out/v18/results_fem_18.csv")
+    # df = pd.read_csv("./Simulation/out/v18/results_fem_18.csv")
     print("end!")
 
 

@@ -13,6 +13,7 @@ import itertools
 from scipy.interpolate import interp1d
 import cv2
 
+from Simulation.Simulator.PostProcessing import str_to_np
 from Simulation.Visualization.Visualizer import Visualizer
 
 
@@ -52,19 +53,66 @@ class DataAnalyst:
             plt.show()
             plt.close()
 
-    def plot_sensor(self, experiment):
-        name, labels, y = self.get_experiment(experiment)
+    def plot_sensor(self, experiment, force_mats=[], pressure=0.0, margin=1):
+        name, labels, y_one = self.get_experiment(experiment)
+
+        if margin > 0:
+            y_two = y_one.reshape((30, 8, 8))
+            y_three = y_two[:, margin:-margin, margin:-margin]
+            new_shape = 8 - 2*margin
+            y = y_three.reshape((30, new_shape * new_shape))
+        else:
+            y = y_one
+
+        y = np.amax(y, axis=1)
+        force = y / y.max() * pressure
 
         xvals = np.arange(0, 30)
-        f = interp1d(xvals, y, kind='quadratic', axis=0)
+        f = interp1d(xvals, y, kind='cubic', axis=0)
         xnew = np.arange(0, 29, 0.1)
         ynew = f(xnew)
 
         # plt.plot(y, 'o', markersize=3)
 
+        plt.plot(force)
         plt.plot(xnew, ynew)
         plt.title(name + ' ' + labels)
-        plt.ylim([-2, 16])
+
+        plt.xlabel('Timestep')
+        plt.ylabel('Force (N)')
+        plt.show()
+
+    def plot_vs_n(self, experiment, pressure=0, margin=1):
+        name, labels, y_one = self.get_experiment(experiment)
+
+        if margin > 0:
+            y_two = y_one.reshape((30, 8, 8))
+            y_three = y_two[:, margin:-margin, margin:-margin]
+            new_shape = 8 - 2*margin
+            y = y_three.reshape((30, new_shape * new_shape))
+        else:
+            y = y_one
+
+        new_y = []
+        for i in range(y.shape[1]):
+            column = y[:, i]
+            if column.max() > 10:
+                new_y.append(column)
+        y = np.array(new_y).T
+
+        if len(y) == 0:
+            return
+
+        xvals = np.arange(0, 30)
+        # f = interp1d(xvals, y, kind='cubic', axis=0)
+        # xnew = np.arange(0, 29, 0.1)
+        # ynew = f(xnew)
+
+        # plt.plot(y, 'o', markersize=3)
+
+        plt.plot(xvals, y)
+        plt.title(name + ' ' + labels)
+        plt.ylim([-1, 16])
         plt.xlabel('Timestep')
         plt.ylabel('Force (N)')
         plt.show()
@@ -119,7 +167,7 @@ def convert_to_array(text):
 
 #%%
 if __name__ == '__main__':
-    da = DataAnalyst('/Users/abeldewit/Documents/GitHub/MRP_G17_Tactile_sensing_with_artificial_skin/Simulation/out/v18/results_fem_18.csv')
+    da = DataAnalyst('/Users/abeldewit/Documents/GitHub/MRP_G17_Tactile_sensing_with_artificial_skin/Simulation/out/v18/results_fem_19.csv')
 
     if 'S0' not in da.df.columns:
         print("Only sensor matrices")
@@ -134,25 +182,37 @@ if __name__ == '__main__':
 
         da.df = pd.concat([da.df, extra_df], axis=1).reset_index()
 
-    shape = input("Shape: ")
+    raw_data = pd.read_csv('/Users/abeldewit/Documents/GitHub/MRP_G17_Tactile_sensing_with_artificial_skin/Simulation/out/v18/v_18_smoothout.csv')
+    shape = 'circle blur.png'  # input("Shape: ")
 
     sampling = False
     if shape == '':
         sampling = True
 
-    for _ in range(1):
+    for _ in range(100):
         if sampling:
-            sample = random.randint(0, len(da.experiments))
+            samp_df = da.df
         else:
             samp_df = da.df[da.df['shape'] == shape]
-            # samp_df = samp_df[samp_df['dynamic/static'] == 1]
-            rannum = random.randint(samp_df.index.min(), samp_df.index.max())
-            sample = int(samp_df.iloc[random.randint(0, len(samp_df))]['id'])
 
-        exp = da.experiments[sample]
-        # da.plot_sensor(exp)
-        da.plot_3d(exp)
+        ran_num = random.randint(0, len(samp_df))
+        ran_idx = samp_df.index[ran_num]
+        random_row = samp_df.loc[ran_idx]
+
+        sample = int(random_row['id'])
+        pressure = float(random_row['pressure'])
+        raw_samp = raw_data[raw_data['id'] == sample]
+
+        force_mats = []
+        for i in range(len(raw_samp)):
+            force_data = str(raw_samp['force_at_surface_matrix'].iloc[i])
+            matrix = str_to_np(force_data)
+            force_mats.append(matrix)
+
+        # da.plot_sensor(sample, margin=0, pressure=pressure)
+        da.plot_vs_n(sample, margin=0, pressure=pressure)
+        # da.plot_3d(exp)
         # da.plot_heat(exp)
 
-        time.sleep(10)
+        time.sleep(1)
 
